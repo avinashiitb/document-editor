@@ -13,7 +13,7 @@
 /* Readdy Light Theme Header */
 .readdy-light-topbar {
   display: flex;
-  height: 48px;
+  height: 40px;
   padding: 0 16px 0 20px;
   background-color: #F8F9FA;
   border-bottom: 1px solid #E5E7EB;
@@ -465,4 +465,18 @@
 .status-item:hover {
   background-color: rgba(255, 255, 255, 0.2);
   cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BREADCRUMB PATH — shared DevScribe style
+   ═══════════════════════════════════════════════════════════════ */
+.breadcrumb-path {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow: visible;
+  flex-wrap: nowrap;
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }

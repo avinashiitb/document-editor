@@ -7,12 +7,15 @@ import { java } from '@codemirror/lang-java';
 import { yaml } from '@codemirror/lang-yaml';
 import { StreamLanguage } from '@codemirror/language';
 import { shell } from '@codemirror/legacy-modes/mode/shell';
+import { EditorView } from '@codemirror/view';
 
 function App() {
   const [code, setCode] = useState('');
   const [fileName, setFileName] = useState('App.tsx');
+  const [breadcrumbs, setBreadcrumbs] = useState([]);
   const [language, setLanguage] = useState('javascript');
   const [output, setOutput] = useState('');
+  const [wordWrap, setWordWrap] = useState(false);
 
   // Panel States
   const [panelOpen, setPanelOpen] = useState(false);
@@ -68,6 +71,19 @@ function App() {
             setFileName(fileInfo.title);
           }
 
+          // Fetch breadcrumb path
+          if (window.pluginAPI.getNestedPath) {
+            window.pluginAPI.getNestedPath({ fileId }).then((result) => {
+              if (result) {
+                const segs = [
+                  ...result.folders.map((f) => ({ label: f.name, isFile: false })),
+                  ...(result.file ? [{ label: result.file.title, isFile: true }] : []),
+                ];
+                setBreadcrumbs(segs);
+              }
+            }).catch(() => {});
+          }
+
           console.log('Loading block documents by parent file...');
           const data = await window.pluginAPI.getDocumentsByParentFile(fileId);
           console.log('Loaded API data:', data);
@@ -91,6 +107,7 @@ function App() {
             if (savedData && typeof savedData === 'object') {
               if (savedData.code !== undefined && savedData.code !== null) setCode(savedData.code);
               if (savedData.language !== undefined && savedData.language !== null) setLanguage(savedData.language);
+              if (savedData.wordWrap !== undefined && savedData.wordWrap !== null) setWordWrap(savedData.wordWrap);
 
               const hasOutput = savedData.output !== undefined && savedData.output !== null && savedData.output !== '';
               if (hasOutput) {
@@ -127,7 +144,7 @@ function App() {
     if (window.pluginAPI && window.pluginAPI.updateDocument && fileId) {
       console.log('Attempting to save block document...');
 
-      const payloadData = { code, language, output, panelOpen };
+      const payloadData = { code, language, output, panelOpen, wordWrap };
       console.log('Payload structure mapping to block data:', payloadData);
 
       const updatedContents = {
@@ -153,7 +170,7 @@ function App() {
     } else {
       console.warn('Cannot save: pluginAPI, updateDocument, or fileId is not defined.');
     }
-  }, [code, language, output, panelOpen, fileId, contentDoc]);
+  }, [code, language, output, panelOpen, wordWrap, fileId, contentDoc]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -185,16 +202,21 @@ function App() {
   }, [code, language, output, panelOpen, handleSave, isReady]);
 
   const editorExtensions = useMemo(() => {
+    const extensions = [];
     switch (language) {
-      case 'javascript': return [javascript({ jsx: true })];
-      case 'typescript': return [javascript({ jsx: true, typescript: true })];
-      case 'java': return [java()];
-      case 'sqlite': return [sql()];
-      case 'docker': return [yaml()];
-      case 'shell': return [StreamLanguage.define(shell)];
-      default: return [javascript({ jsx: true })];
+      case 'javascript': extensions.push(javascript({ jsx: true })); break;
+      case 'typescript': extensions.push(javascript({ jsx: true, typescript: true })); break;
+      case 'java': extensions.push(java()); break;
+      case 'sqlite': extensions.push(sql()); break;
+      case 'docker': extensions.push(yaml()); break;
+      case 'shell': extensions.push(StreamLanguage.define(shell)); break;
+      default: extensions.push(javascript({ jsx: true })); break;
     }
-  }, [language]);
+    if (wordWrap) {
+      extensions.push(EditorView.lineWrapping);
+    }
+    return extensions;
+  }, [language, wordWrap]);
 
   const getLangDotColor = () => {
     switch (language) {
@@ -283,16 +305,60 @@ function App() {
     <div className="App light-theme">
       <header className="readdy-light-topbar">
         <div className="topbar-left">
-          <div className="editor-label">
-            <i className="ri-layout-masonry-fill"></i>
-            <span>EDITOR</span>
-          </div>
-          <div className="vertical-divider"></div>
-          <div className="file-info">
-            <i className="ri-file-code-line file-type-icon"></i>
-            <span className="file-name">{fileName}</span>
-            <i className="ri-pencil-line edit-icon"></i>
-          </div>
+          <nav
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0,
+              fontSize: 12,
+              color: '#9ca3af',
+              overflow: 'visible',
+              flexWrap: 'nowrap',
+            }}
+            aria-label="file path"
+          >
+            <i className="fa-solid fa-folder" style={{ marginRight: 6, fontSize: 11, opacity: 0.7, color: '#9ca3af' }}></i>
+            {(breadcrumbs.length > 0
+              ? breadcrumbs
+              : [{ label: fileName, isFile: true }]
+            ).map((seg, idx) => (
+              <React.Fragment key={idx}>
+                {!seg.isFile && (
+                  <>
+                    <span
+                      style={{
+                        whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: '#9ca3af',
+                        cursor: 'default',
+                      }}
+                      title={seg.label}
+                    >
+                      {seg.label}
+                    </span>
+                    <span style={{ color: '#9ca3af', opacity: 0.5, margin: '0 4px', fontSize: 13, userSelect: 'none' }}>›</span>
+                  </>
+                )}
+                {seg.isFile && (
+                  <span
+                    style={{
+                      whiteSpace: 'nowrap',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#111827',
+                      cursor: 'default',
+                    }}
+                    title={seg.label}
+                  >
+                    {seg.label}
+                  </span>
+                )}
+              </React.Fragment>
+            ))}
+          </nav>
         </div>
 
         <div className="topbar-center">
@@ -313,6 +379,14 @@ function App() {
         <div className="topbar-right">
           {/* <button className="icon-btn-light" onClick={handleSave} title="Save (Cmd/Ctrl + S)"><i className="ri-save-3-line"></i></button>
           <button className="icon-btn-light" title="Dark Mode (Mock)"><i className="ri-moon-line"></i></button> */}
+          <button
+            className={`icon-btn-light ${wordWrap ? 'active' : ''}`}
+            onClick={() => setWordWrap(!wordWrap)}
+            title="Toggle Word Wrap"
+          >
+            <i className="ri-text-wrap"></i>
+          </button>
+
           <button
             className={`icon-btn-light ${panelOpen ? 'active' : ''}`}
             onClick={() => { setActiveTab('OUTPUT'); setPanelOpen(!panelOpen); }}
