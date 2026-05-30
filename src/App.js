@@ -1,31 +1,20 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
-import CodeMirror from '@uiw/react-codemirror';
-import { javascript } from '@codemirror/lang-javascript';
-import { sql } from '@codemirror/lang-sql';
-import { java } from '@codemirror/lang-java';
-import { yaml } from '@codemirror/lang-yaml';
-import { StreamLanguage } from '@codemirror/language';
-import { shell } from '@codemirror/legacy-modes/mode/shell';
-import { EditorView } from '@codemirror/view';
+
+import { useCreateBlockNote } from "@blocknote/react";
+import { BlockNoteView } from "@blocknote/mantine";
+import "@blocknote/mantine/style.css";
+import "@blocknote/core/fonts/inter.css";
 
 function App() {
-  const [code, setCode] = useState('');
-  const [fileName, setFileName] = useState('App.tsx');
+  const [fileName, setFileName] = useState('Untitled Document');
   const [breadcrumbs, setBreadcrumbs] = useState([]);
-  const [language, setLanguage] = useState('javascript');
-  const [output, setOutput] = useState('');
-  const [wordWrap, setWordWrap] = useState(false);
-
-  // Panel States
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('TERMINAL');
-  const [panelHeight, setPanelHeight] = useState(250);
-  const isDragging = useRef(false);
-  const [isExecuting, setIsExecuting] = useState(false);
+  const [initialContent, setInitialContent] = useState(null);
+  const [contentDoc, setContentDoc] = useState(null);
   const [isReady, setIsReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
 
-  // Menu State
+  // Dropdown Menu State
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -39,15 +28,11 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // DevScribe Documents Architecture
-  const [contentDoc, setContentDoc] = useState(null);
-
-  // Scrape FileId aggressively from any electron-router bounds
+  // Fetch FileId from context or URL search params
   const getFileId = () => {
     let id = window.pluginAPI?.context?.fileId;
     if (id) return id;
 
-    // Fallback URL parsing
     try {
       const url = new URL(window.location.href);
       id = url.searchParams.get("fileId");
@@ -55,12 +40,13 @@ function App() {
         const hashParams = new URLSearchParams(window.location.hash.split("?")[1]);
         id = hashParams.get("fileId");
       }
-    } catch (e) { }
+    } catch (e) {}
     return id;
   };
 
   const fileId = getFileId();
 
+  // Load Initial Data from DevScribe DB
   useEffect(() => {
     const loadInitialData = async () => {
       if (window.pluginAPI && fileId) {
@@ -71,7 +57,7 @@ function App() {
             setFileName(fileInfo.title);
           }
 
-          // Fetch breadcrumb path
+          // Fetch breadcrumbs
           if (window.pluginAPI.getNestedPath) {
             window.pluginAPI.getNestedPath({ fileId }).then((result) => {
               if (result) {
@@ -84,18 +70,17 @@ function App() {
             }).catch(() => {});
           }
 
-          console.log('Loading block documents by parent file...');
+          console.log('Loading documents by parent file...');
           const data = await window.pluginAPI.getDocumentsByParentFile(fileId);
           console.log('Loaded API data:', data);
 
           if (data && data.length > 0) {
-            const document = data[0];
-            setContentDoc(document);
+            const documentObj = data[0];
+            setContentDoc(documentObj);
 
-            let savedData = document?.blocks?.[0]?.data;
+            let savedData = documentObj?.blocks?.[0]?.data;
             console.log('Detected block data layer:', savedData);
 
-            // Safely parse if the database returns stringified JSON
             if (typeof savedData === 'string') {
               try {
                 savedData = JSON.parse(savedData);
@@ -105,219 +90,218 @@ function App() {
             }
 
             if (savedData && typeof savedData === 'object') {
-              if (savedData.code !== undefined && savedData.code !== null) setCode(savedData.code);
-              if (savedData.language !== undefined && savedData.language !== null) setLanguage(savedData.language);
-              if (savedData.wordWrap !== undefined && savedData.wordWrap !== null) setWordWrap(savedData.wordWrap);
-
-              const hasOutput = savedData.output !== undefined && savedData.output !== null && savedData.output !== '';
-              if (hasOutput) {
-                setOutput(savedData.output);
-                setActiveTab('OUTPUT');
+              if (savedData.blocks) {
+                // Loaded rich text blocks from BlockNote
+                setInitialContent(savedData.blocks);
+              } else if (savedData.code !== undefined && savedData.code !== null) {
+                // Graceful migration of old code-editor database entries
+                const migratedBlocks = [
+                  {
+                    type: "heading",
+                    content: "Migrated Code File"
+                  },
+                  {
+                    type: "paragraph",
+                    content: "This file was migrated from a legacy code editor format."
+                  },
+                  {
+                    type: "code",
+                    content: savedData.code,
+                    language: savedData.language || "javascript"
+                  }
+                ];
+                setInitialContent(migratedBlocks);
+              } else {
+                setInitialContent(getDefaultBlocks(fileInfo?.title));
               }
-
-              if (savedData.panelOpen !== undefined && savedData.panelOpen !== null) {
-                setPanelOpen(savedData.panelOpen);
-              } else if (hasOutput) {
-                // Backward compatibility: automatically open if there's output but no saved panel state
-                setPanelOpen(true);
-              }
+            } else {
+              setInitialContent(getDefaultBlocks(fileInfo?.title));
             }
           } else {
-            console.log('No documents array found. Falling back to default state.');
+            console.log('No documents found. Initializing default welcome document.');
+            setInitialContent(getDefaultBlocks(fileInfo?.title));
           }
         } catch (err) {
           console.warn('Failed to load initial data:', err);
+          setInitialContent(getDefaultBlocks());
         } finally {
           setIsReady(true);
         }
       } else {
-        // If not in DevScribe env, just set ready
+        // Fallback for standalone development outside DevScribe
+        setInitialContent(getDefaultBlocks());
         setIsReady(true);
       }
     };
 
-    // Give it a small delay just in case IPC isn't fully ready immediately
     setTimeout(loadInitialData, 100);
   }, [fileId]);
 
-  const handleSave = useCallback(async (showNotification = true) => {
-    if (window.pluginAPI && window.pluginAPI.updateDocument && fileId) {
-      console.log('Attempting to save block document...');
-
-      const payloadData = { code, language, output, panelOpen, wordWrap };
-      console.log('Payload structure mapping to block data:', payloadData);
-
-      const updatedContents = {
-        version: "1.0.0",
-        time: Date.now(),
-        blocks: [{ type: "code-editor", data: payloadData }],
-        parent_file: fileId,
-        _id: contentDoc?._id,
-      };
-
-      try {
-        await window.pluginAPI.updateDocument(fileId, [updatedContents]);
-        console.log('Save operation completed successfully via updateDocument');
-        if (showNotification && window.pluginAPI.notify) {
-          window.pluginAPI.notify('Code saved successfully', 'success');
-        }
-      } catch (err) {
-        console.error('Save error thrown by updateDocument:', err);
-        if (showNotification && window.pluginAPI.notify) {
-          window.pluginAPI.notify('Failed to save code', 'error');
-        }
+  // Generate standard default welcome document
+  const getDefaultBlocks = (title) => {
+    const docTitle = title ? title.replace(/\.[^/.]+$/, "") : "Untitled Document";
+    return [
+      {
+        type: "heading",
+        content: `Welcome to ${docTitle}`
+      },
+      {
+        type: "paragraph",
+        content: "This is your clean, distraction-free document editing workspace. It supports robust rich text, list nesting, media blocks, and code formatting."
+      },
+      {
+        type: "paragraph",
+        content: "Type '/' to see all block types and formatting commands."
       }
-    } else {
-      console.warn('Cannot save: pluginAPI, updateDocument, or fileId is not defined.');
-    }
-  }, [code, language, output, panelOpen, wordWrap, fileId, contentDoc]);
+    ];
+  };
 
+  // Instantiates the editor once the initial content is loaded
+  const editor = useCreateBlockNote(
+    initialContent ? { initialContent } : undefined,
+    [initialContent !== null]
+  );
+
+  // Sync / Save callback
+  const handleSave = useCallback(async (blocksToSave, showNotification = false) => {
+    if (!window.pluginAPI || !fileId || !blocksToSave) return;
+
+    setSaveStatus('saving');
+    const payloadData = { blocks: blocksToSave };
+
+    const updatedContents = {
+      version: "1.0.0",
+      time: Date.now(),
+      blocks: [{ type: "document-editor", data: payloadData }],
+      parent_file: fileId,
+      _id: contentDoc?._id,
+    };
+
+    try {
+      await window.pluginAPI.updateDocument(fileId, [updatedContents]);
+      setSaveStatus('saved');
+      if (showNotification && window.pluginAPI.notify) {
+        window.pluginAPI.notify('Document saved successfully', 'success');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      setSaveStatus('error');
+      if (showNotification && window.pluginAPI.notify) {
+        window.pluginAPI.notify('Failed to save document', 'error');
+      }
+    }
+  }, [fileId, contentDoc]);
+
+  // Handle typing auto-save with a 1.2s debounce
+  const saveTimeoutRef = useRef(null);
+  const handleEditorChange = useCallback(() => {
+    if (!editor) return;
+
+    setSaveStatus('saving');
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      handleSave(editor.document);
+    }, 1200);
+  }, [editor, handleSave]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Keyboard shortcut Ctrl/Cmd + S to trigger instant save
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        handleSave(true);
+        if (editor) {
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+          handleSave(editor.document, true);
+        }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave]);
+  }, [editor, handleSave]);
 
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-
-    // Only auto-save if we have successfully loaded data first
-    if (!isReady) return;
-
-    // Auto-save with a 1-second debounce
-    const timeoutId = setTimeout(() => {
-      handleSave(false);
-    }, 1000);
-
-    return () => clearTimeout(timeoutId);
-  }, [code, language, output, panelOpen, handleSave, isReady]);
-
-  const editorExtensions = useMemo(() => {
-    const extensions = [];
-    switch (language) {
-      case 'javascript': extensions.push(javascript({ jsx: true })); break;
-      case 'typescript': extensions.push(javascript({ jsx: true, typescript: true })); break;
-      case 'java': extensions.push(java()); break;
-      case 'sqlite': extensions.push(sql()); break;
-      case 'docker': extensions.push(yaml()); break;
-      case 'shell': extensions.push(StreamLanguage.define(shell)); break;
-      default: extensions.push(javascript({ jsx: true })); break;
-    }
-    if (wordWrap) {
-      extensions.push(EditorView.lineWrapping);
-    }
-    return extensions;
-  }, [language, wordWrap]);
-
-  const getLangDotColor = () => {
-    switch (language) {
-      case 'javascript': return 'yellow';
-      case 'typescript': return 'blue';
-      case 'docker': return 'blue';
-      case 'sqlite': return 'gray';
-      case 'java': return 'red';
-      default: return 'green';
-    }
-  };
-
-  const handleRun = async (action = 'run') => {
-    if (!window.pluginAPI) {
-      setOutput('Error: window.pluginAPI is not available in this environment.');
-      setActiveTab('OUTPUT');
-      setPanelOpen(true);
-      return;
-    }
-
-    setOutput('Executing...');
-    setActiveTab('OUTPUT');
-    setPanelOpen(true);
-    setIsExecuting(true);
-
+  // Export action handling
+  const handleExport = async (format) => {
+    if (!editor) return;
     try {
-      let result;
-      if (language === 'javascript') {
-        result = await window.pluginAPI.runJsCode(code);
-      } else if (language === 'typescript') {
-        result = await window.pluginAPI.runTsCode(code);
-      } else if (language === 'shell') {
-        result = await window.pluginAPI.runShellCommand(code);
-      } else if (language === 'java') {
-        result = await window.pluginAPI.runJavaCode(code);
-      } else if (language === 'sqlite') {
-        result = await window.pluginAPI.runSqliteCommand(code);
-      } else if (language === 'docker') {
-        result = await window.pluginAPI.runDockerCompose(code, action === 'stop' ? 'down' : 'up -d', fileName, fileId);
+      let payload = '';
+      let fileExtension = '';
+      let mimeType = '';
+
+      if (format === 'ds') {
+        payload = JSON.stringify({
+          _id: contentDoc?._id || `doc-${Date.now()}`,
+          version: "1.0.0",
+          time: Date.now(),
+          parent_file: fileId || "standalone-export",
+          blocks: [{ type: "document-editor", data: { blocks: editor.document } }],
+          createdAt: contentDoc?.createdAt || Date.now(),
+          updatedAt: Date.now(),
+          fileType: "document-editor"
+        }, null, 2);
+        fileExtension = 'ds';
+        mimeType = 'application/json';
+      } else if (format === 'md') {
+        payload = await editor.blocksToMarkdownLossy(editor.document);
+        fileExtension = 'md';
+        mimeType = 'text/markdown';
+      } else if (format === 'html') {
+        payload = await editor.blocksToHTMLLossy(editor.document);
+        fileExtension = 'html';
+        mimeType = 'text/html';
       }
 
-      if (typeof result === 'object' && result !== null) {
-        setOutput(JSON.stringify(result, null, 2));
-      } else {
-        setOutput(String(result) || 'Executed successfully (no output).');
+      const blob = new Blob([payload], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = fileName ? fileName.split('.')[0] : 'document';
+      a.download = `${safeName}.${fileExtension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      if (window.pluginAPI && window.pluginAPI.notify) {
+        window.pluginAPI.notify(`Exported as ${format.toUpperCase()} successfully`, 'success');
       }
     } catch (err) {
-      setOutput(`Error: ${err.message || String(err)}`);
-    } finally {
-      setIsExecuting(false);
+      console.error('Export failed:', err);
+      if (window.pluginAPI && window.pluginAPI.notify) {
+        window.pluginAPI.notify('Failed to export document', 'error');
+      }
     }
+    setIsMenuOpen(false);
   };
 
-  const handleMouseDown = useCallback((e) => {
-    e.preventDefault();
-    isDragging.current = true;
-    document.body.style.cursor = 'row-resize';
-  }, []);
-
-  const handleMouseMove = useCallback((e) => {
-    if (!isDragging.current) return;
-    const newHeight = window.innerHeight - e.clientY;
-    if (newHeight >= 60 && newHeight <= window.innerHeight - 100) {
-      setPanelHeight(newHeight);
-      if (!panelOpen) setPanelOpen(true);
-    }
-  }, [panelOpen]);
-
-  const handleMouseUp = useCallback(() => {
-    if (isDragging.current) {
-      isDragging.current = false;
-      document.body.style.cursor = 'default';
-    }
-  }, []);
-
-  useEffect(() => {
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [handleMouseMove, handleMouseUp]);
+  if (!isReady || !editor) {
+    return (
+      <div className="editor-loading">
+        <i className="ri-loader-4-line ri-spin loading-icon"></i>
+        <span>Loading Document...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="App light-theme">
+    <div className="App document-editor-app">
       <header className="readdy-light-topbar">
         <div className="topbar-left">
-          <nav
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0,
-              fontSize: 12,
-              color: '#9ca3af',
-              overflow: 'visible',
-              flexWrap: 'nowrap',
-            }}
-            aria-label="file path"
-          >
-            <i className="fa-solid fa-folder" style={{ marginRight: 6, fontSize: 11, opacity: 0.7, color: '#9ca3af' }}></i>
+          <nav className="breadcrumb-path" aria-label="file path">
+            <i className="ri-file-text-line file-icon-nav" style={{ marginRight: 6, fontSize: 14, color: '#4F46E5' }}></i>
             {(breadcrumbs.length > 0
               ? breadcrumbs
               : [{ label: fileName, isFile: true }]
@@ -325,34 +309,14 @@ function App() {
               <React.Fragment key={idx}>
                 {!seg.isFile && (
                   <>
-                    <span
-                      style={{
-                        whiteSpace: 'nowrap',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: '#9ca3af',
-                        cursor: 'default',
-                      }}
-                      title={seg.label}
-                    >
+                    <span className="breadcrumb-folder" title={seg.label}>
                       {seg.label}
                     </span>
-                    <span style={{ color: '#9ca3af', opacity: 0.5, margin: '0 4px', fontSize: 13, userSelect: 'none' }}>›</span>
+                    <span className="breadcrumb-chevron">›</span>
                   </>
                 )}
                 {seg.isFile && (
-                  <span
-                    style={{
-                      whiteSpace: 'nowrap',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: '#111827',
-                      cursor: 'default',
-                    }}
-                    title={seg.label}
-                  >
+                  <span className="breadcrumb-file" title={seg.label}>
                     {seg.label}
                   </span>
                 )}
@@ -362,160 +326,70 @@ function App() {
         </div>
 
         <div className="topbar-center">
-          <div className="language-pill">
-            <span className={`lang-dot ${getLangDotColor()}`}></span>
-            <select className="pill-select" value={language} onChange={(e) => setLanguage(e.target.value)}>
-              <option value="javascript">JavaScript</option>
-              <option value="typescript">TypeScript</option>
-              <option value="shell">Shell</option>
-              <option value="java">Java</option>
-              <option value="sqlite">SQLite</option>
-              <option value="docker">Docker Compose</option>
-            </select>
-            <i className="ri-arrow-down-s-line chevron"></i>
+          <div className="save-status-container">
+            {saveStatus === 'saved' && (
+              <span className="save-status saved" title="All changes saved to DB">
+                <i className="ri-checkbox-circle-fill"></i>
+                Saved
+              </span>
+            )}
+            {saveStatus === 'saving' && (
+              <span className="save-status saving" title="Saving changes...">
+                <i className="ri-loader-4-line ri-spin"></i>
+                Saving
+              </span>
+            )}
+            {saveStatus === 'error' && (
+              <span className="save-status error" title="Connection error, click Ctrl/Cmd + S to retry">
+                <i className="ri-error-warning-fill"></i>
+                Save Error
+              </span>
+            )}
           </div>
         </div>
 
         <div className="topbar-right">
-          {/* <button className="icon-btn-light" onClick={handleSave} title="Save (Cmd/Ctrl + S)"><i className="ri-save-3-line"></i></button>
-          <button className="icon-btn-light" title="Dark Mode (Mock)"><i className="ri-moon-line"></i></button> */}
-          <button
-            className={`icon-btn-light ${wordWrap ? 'active' : ''}`}
-            onClick={() => setWordWrap(!wordWrap)}
-            title="Toggle Word Wrap"
-          >
-            <i className="ri-text-wrap"></i>
-          </button>
-
-          <button
-            className={`icon-btn-light ${panelOpen ? 'active' : ''}`}
-            onClick={() => { setActiveTab('OUTPUT'); setPanelOpen(!panelOpen); }}
-            title="Toggle Terminal"
-          >
-            <i className="ri-layout-bottom-2-line"></i>
-          </button>
-
-          {language === 'docker' ? (
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <button disabled={isExecuting} onClick={() => handleRun('run')} className="run-btn-light">
-                {isExecuting ? <i className="ri-loader-4-line ri-spin" style={{ marginRight: '4px' }}></i> : <i className="ri-play-fill run-play-icon"></i>}
-                Up
-              </button>
-              <button disabled={isExecuting} onClick={() => handleRun('stop')} className="run-btn-light" style={{ backgroundColor: '#EF4444' }}>
-                {isExecuting ? <i className="ri-loader-4-line ri-spin" style={{ marginRight: '4px' }}></i> : <i className="ri-stop-fill run-play-icon"></i>}
-                Down
-              </button>
-            </div>
-          ) : (
-            <button disabled={isExecuting} onClick={() => handleRun('run')} className="run-btn-light">
-              {isExecuting ? <i className="ri-loader-4-line ri-spin" style={{ marginRight: '4px' }}></i> : <i className="ri-play-fill run-play-icon"></i>}
-              Run Code
-            </button>
-          )}
-
           <div style={{ position: "relative" }} ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "6px 12px",
-                backgroundColor: "#FFFFFF",
-                border: "1px solid #E5E7EB",
-                borderRadius: "6px",
-                fontSize: "13px",
-                color: "#374151",
-                cursor: "pointer",
-                fontWeight: 500,
-                marginLeft: "4px"
-              }}
+              className="options-dropdown-btn"
+              id="options-menu-trigger"
             >
-              <i className="ri-lock-line" style={{ marginRight: "6px", color: "#6b7280" }}></i>
-              Options
+              <i className="ri-menu-fill" style={{ marginRight: "6px", color: "#4F46E5" }}></i>
+              Document options
               <i className="ri-arrow-down-s-line" style={{ marginLeft: "4px", color: "#6b7280" }}></i>
             </button>
 
             {isMenuOpen && (
-              <div style={{
-                position: "absolute",
-                right: 0,
-                marginTop: "6px",
-                width: "192px",
-                backgroundColor: "white",
-                borderRadius: "8px",
-                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-                border: "1px solid #E5E7EB",
-                zIndex: 50
-              }}>
+              <div className="options-dropdown-menu">
                 <div style={{ padding: "4px 0" }}>
-                  <div style={{ padding: "8px 16px", fontSize: "11px", fontWeight: 600, color: "#6B7280", letterSpacing: "0.5px", textTransform: "uppercase" }}>
-                    Export Options
-                  </div>
+                  <div className="menu-section-header">Export document</div>
+                  
                   <button
-                    className="menu-item-light hover-bg-gray"
-                    onClick={() => {
-                      try {
-                        const payload = JSON.stringify({
-                          _id: contentDoc?._id || `code-editor-${Date.now()}`,
-                          version: contentDoc?.version || 1,
-                          time: Date.now(),
-                          parent_file: fileId || "standalone-export",
-                          blocks: [
-                            {
-                              type: "code-editor",
-                              data: { code, language, output, panelOpen }
-                            }
-                          ],
-                          createdAt: contentDoc?.createdAt || Date.now(),
-                          updatedAt: Date.now(),
-                          fileType: "code-editor"
-                        }, null, 2);
-
-                        const blob = new Blob([payload], { type: "application/json" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        const safeName = fileName ? fileName.split('.')[0] : 'export';
-                        a.download = `${safeName}.ds`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-
-                        if (window.pluginAPI && window.pluginAPI.notify) {
-                          window.pluginAPI.notify("Exported successfully", "success");
-                        }
-                      } catch (err) {
-                        console.error("Export failed:", err);
-                        if (window.pluginAPI && window.pluginAPI.notify) {
-                          window.pluginAPI.notify("Export failed", "error");
-                        }
-                      }
-                      setIsMenuOpen(false);
-                    }}
-                    style={{ width: "100%", display: "flex", alignItems: "center", padding: "8px 16px", backgroundColor: "transparent", border: "none", fontSize: "13px", color: "#374151", cursor: "pointer", textAlign: "left" }}
+                    className="menu-item-light"
+                    id="export-ds-btn"
+                    onClick={() => handleExport('ds')}
                   >
-                    <i className="ri-file-code-fill" style={{ marginRight: "10px", color: "#2563EB" }}></i>
-                    Devscribe (.ds)
+                    <i className="ri-file-code-fill" style={{ marginRight: "10px", color: "#4F46E5" }}></i>
+                    DevScribe (.ds)
                   </button>
 
-                  <div style={{ borderTop: "1px solid #E5E7EB", margin: "4px 10px" }}></div>
-
-                  <div style={{ padding: "8px 16px", fontSize: "11px", fontWeight: 600, color: "#6B7280", letterSpacing: "0.5px", textTransform: "uppercase" }}>
-                    Preferences
-                  </div>
                   <button
-                    className="menu-item-light hover-bg-gray"
-                    onClick={() => {
-                      if (window.pluginAPI && window.pluginAPI.notify) {
-                        window.pluginAPI.notify("Settings opened", "info");
-                      }
-                      setIsMenuOpen(false);
-                    }}
-                    style={{ width: "100%", display: "flex", alignItems: "center", padding: "8px 16px", backgroundColor: "transparent", border: "none", fontSize: "13px", color: "#374151", cursor: "pointer", textAlign: "left" }}
+                    className="menu-item-light"
+                    id="export-md-btn"
+                    onClick={() => handleExport('md')}
                   >
-                    <i className="ri-settings-4-line" style={{ marginRight: "10px", color: "#4B5563" }}></i>
-                    Settings
+                    <i className="ri-markdown-fill" style={{ marginRight: "10px", color: "#009688" }}></i>
+                    Markdown (.md)
+                  </button>
+
+                  <button
+                    className="menu-item-light"
+                    id="export-html-btn"
+                    onClick={() => handleExport('html')}
+                  >
+                    <i className="ri-html5-fill" style={{ marginRight: "10px", color: "#FF5722" }}></i>
+                    Web Page (.html)
                   </button>
                 </div>
               </div>
@@ -525,63 +399,15 @@ function App() {
       </header>
 
       <div className="workspace">
-        <div className="editor-container">
-          <CodeMirror
-            value={code}
-            height="100%"
-            extensions={editorExtensions}
-            onChange={(value) => setCode(value)}
-            theme="light"
-            basicSetup={{
-              lineNumbers: true,
-              highlightActiveLineGutter: true,
-              foldGutter: true,
-              dropCursor: true,
-              allowMultipleSelections: true,
-              indentOnInput: true,
-              bracketMatching: true,
-              closeBrackets: true,
-              autocompletion: true,
-              highlightActiveLine: true,
-              highlightSelectionMatches: true,
-            }}
-            style={{ flex: 1, textAlign: 'left', height: '100%' }}
-          />
-        </div>
-
-        <div className={`light-bottom-panel ${panelOpen ? 'open' : 'closed'}`} style={panelOpen ? { height: `${panelHeight}px` } : {}}>
-          {panelOpen && (
-            <>
-              <div className="panel-resizer" onMouseDown={handleMouseDown}></div>
-              <div className="light-panel-header">
-                <div className="panel-title">
-                  <i className="ri-terminal-box-line"></i>
-                  <span>TERMINAL</span>
-                  <span className="terminal-subtitle">bash</span>
-                </div>
-                <div className="panel-actions">
-                  <button className="icon-btn-light" onClick={() => setOutput('')} title="Clear Output">
-                    <i className="ri-delete-bin-line" style={{ fontSize: '14px' }}></i>
-                  </button>
-                  <button className="icon-btn-light" onClick={() => setPanelOpen(false)} title="Close Panel">
-                    <i className="ri-arrow-down-s-line"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div className="light-panel-content">
-                {activeTab === 'OUTPUT' && <pre>{output}</pre>}
-                {activeTab === 'TERMINAL' && (
-                  <div className="terminal-placeholder">
-                    <span style={{ color: '#3B82F6', fontWeight: 600 }}>&gt; Ready to execute...</span>
-                    <br />
-                    <span><span style={{ color: '#3B82F6' }}>~</span> <span style={{ color: '#6B7280' }}>$</span> </span>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        <main className="editor-container" id="blocknote-editor-wrapper">
+          <div className="editor-paper">
+            <BlockNoteView 
+              editor={editor} 
+              onChange={handleEditorChange}
+              theme="light"
+            />
+          </div>
+        </main>
       </div>
     </div>
   );

@@ -1,10 +1,10 @@
 {
-  "id": "code-editor",
-  "name": "Code Editor",
+  "id": "document-editor",
+  "name": "Document Editor",
   "version": "1.0.0",
-  "description": "A React-based code editor plugin featuring multi-language execution and syntax highlighting.",
-  "fileType": "code-editor",
-  "route": "/code-editor/:file_id",
+  "description": "A beautiful, rich-text collaborative document editor plugin powered by BlockNote.",
+  "fileType": "document-editor",
+  "route": "/document-editor/:file_id",
   "entry": "/build/index.html",
   "icon": "build/Icons.svg"
 }
