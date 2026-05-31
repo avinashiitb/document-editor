@@ -117,6 +117,29 @@
   cursor: pointer;
 }
 
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  font-size: 16px;
+  color: #4B5563;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-right: 8px;
+}
+
+.theme-toggle-btn:hover {
+  background-color: #F3F4F6;
+  border-color: #D1D5DB;
+  color: #111827;
+}
+
 /* Options dropdown styling */
 .options-dropdown-btn {
   display: flex;
@@ -209,7 +232,22 @@
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
   font-size: 15px !important;
   line-height: 1.6 !important;
+}
+
+.light-theme .bn-editor,
+.light-theme .bn-editor h1,
+.light-theme .bn-editor h2,
+.light-theme .bn-editor h3,
+.light-theme .bn-editor p {
   color: #2D3748 !important;
+}
+
+.dark-theme .bn-editor,
+.dark-theme .bn-editor h1,
+.dark-theme .bn-editor h2,
+.dark-theme .bn-editor h3,
+.dark-theme .bn-editor p {
+  color: #E5E7EB !important;
 }
 
 /* Custom CSS Scrollbar style */
@@ -300,6 +338,167 @@
   color: inherit !important;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   Dark Theme Style Overrides
+   ═══════════════════════════════════════════════════════════════ */
+
+.dark-theme {
+  background-color: #121212 !important;
+  color: #E5E7EB !important;
+}
+
+/* Topbar Dark mode */
+.dark-theme .readdy-light-topbar {
+  background-color: #1A1A1A !important;
+  border-bottom: 1px solid #2D2D2D !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Breadcrumb Dark mode */
+.dark-theme .breadcrumb-folder {
+  color: #9CA3AF !important;
+}
+
+.dark-theme .breadcrumb-chevron {
+  color: #4B5563 !important;
+}
+
+.dark-theme .breadcrumb-file {
+  color: #FFFFFF !important;
+}
+
+/* Theme Toggle Dark mode */
+.dark-theme .theme-toggle-btn {
+  background-color: #2A2A2A !important;
+  border: 1px solid #3D3D3D !important;
+  color: #D1D5DB !important;
+}
+
+.dark-theme .theme-toggle-btn:hover {
+  background-color: #333333 !important;
+  border-color: #4B5563 !important;
+  color: #FFFFFF !important;
+}
+
+/* Dropdown Options Dark mode */
+.dark-theme .options-dropdown-btn {
+  background-color: #2A2A2A !important;
+  border: 1px solid #3D3D3D !important;
+  color: #D1D5DB !important;
+}
+
+.dark-theme .options-dropdown-btn:hover {
+  background-color: #333333 !important;
+  border-color: #4B5563 !important;
+}
+
+.dark-theme .options-dropdown-menu {
+  background-color: #1A1A1A !important;
+  border: 1px solid #2D2D2D !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-theme .menu-section-header {
+  color: #4B5563 !important;
+}
+
+.dark-theme .menu-item-light {
+  color: #D1D5DB !important;
+}
+
+.dark-theme .menu-item-light:hover {
+  background-color: #2D2D2D !important;
+  color: #FFFFFF !important;
+}
+
+/* Workspace Canvas Dark mode */
+.dark-theme .workspace,
+.dark-theme .editor-container {
+  background-color: #121212 !important;
+}
+
+.dark-theme .editor-paper {
+  background-color: #1A1A1A !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  color: #E5E7EB !important;
+}
+
+/* Table Dark Mode overrides */
+.dark-theme .bn-table th,
+.dark-theme .bn-editor th,
+.dark-theme .bn-table thead tr,
+.dark-theme .bn-editor thead tr {
+  background-color: #2A2A2A !important;
+  color: #E5E7EB !important;
+  border: 1px solid #3D3D3D !important;
+}
+
+.dark-theme .bn-table,
+.dark-theme .bn-editor table,
+.dark-theme .bn-table td,
+.dark-theme .bn-editor td {
+  border: 1px solid #3D3D3D !important;
+}
+
+.dark-theme .bn-table td,
+.dark-theme .bn-editor td {
+  color: #D1D5DB !important;
+}
+
+.dark-theme .bn-table tr:hover {
+  background-color: #252525 !important;
+}
+
+.dark-theme .bn-table tr:focus-within {
+  background-color: #2D2D2D !important;
+}
+
+/* Code Formatting Dark Mode overrides */
+.dark-theme .bn-editor code,
+.dark-theme .bn-inline-content code,
+.dark-theme code {
+  background-color: #2D2D2D !important;
+  color: #F472B6 !important; /* Premium light-pink Notion style for dark mode */
+  border: 1px solid #3D3D3D !important;
+}
+
+.dark-theme .bn-editor pre,
+.dark-theme .bn-block[data-content-type="code"] pre,
+.dark-theme .bn-block-content[data-content-type="code"] pre,
+.dark-theme pre {
+  background-color: #1A1A1A !important;
+  border: 1px solid #2D2D2D !important;
+  color: #E5E7EB !important;
+}
+
+.dark-theme .bn-editor pre code,
+.dark-theme .bn-block[data-content-type="code"] pre code,
+.dark-theme pre code {
+  color: #E5E7EB !important;
+}
+
+/* Mantine button styles in Dark Mode */
+.dark-theme .mantine-Button-root {
+  background-color: #2A2A2A !important;
+  color: #E5E7EB !important;
+  border: 1px solid #3D3D3D !important;
+}
+
+.dark-theme .mantine-Button-root:hover {
+  background-color: #333333 !important;
+}
+
+/* Scrollbar Dark mode */
+.dark-theme .editor-container::-webkit-scrollbar-thumb {
+  background: #374151 !important;
+}
+
+.dark-theme .editor-container::-webkit-scrollbar-thumb:hover {
+  background: #4B5563 !important;
+}
+
+
 /* ═══════════════════════════════════════════════════════════════
    Code Formatting Overrides (Inline Code & Code Blocks)
    ═══════════════════════════════════════════════════════════════ */
@@ -319,6 +518,32 @@ code {
 }
 
 /* Premium Block-level Code Block styling */
+.light-theme .bn-block-content[data-content-type=codeBlock] {
+    background-color: #ffffff !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 8px;
+    position: relative;
+}
+
+.dark-theme .bn-block-content[data-content-type=codeBlock] {
+    background-color: #161616 !important;
+    border: 1px solid #2D2D2D !important;
+    border-radius: 8px;
+    position: relative;
+}
+
+/* Ensure inner pre elements within BlockNote codeBlocks are transparent and borderless */
+.bn-block-content[data-content-type=codeBlock] pre {
+    background-color: transparent !important;
+    border: none !important;
+    margin: 0 !important;
+}
+
+.dark-theme .bn-block-content[data-content-type=codeBlock] pre,
+.dark-theme .bn-block-content[data-content-type=codeBlock] pre code {
+    color: #E5E7EB !important;
+}
+
 .bn-editor pre,
 .bn-block[data-content-type="code"] pre,
 .bn-block-content[data-content-type="code"] pre,

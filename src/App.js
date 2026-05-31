@@ -13,6 +13,15 @@ function App() {
   const [contentDoc, setContentDoc] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
+  
+  // Theme state persisted in localStorage
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('document-editor-theme') || 'light';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('document-editor-theme', theme);
+  }, [theme]);
 
   // Dropdown Menu State
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -305,7 +314,7 @@ function App() {
   }
 
   return (
-    <div className="App document-editor-app">
+    <div className={`App document-editor-app ${theme}-theme`}>
       <header className="readdy-light-topbar">
         <div className="topbar-left">
           <nav className="breadcrumb-path" aria-label="file path">
@@ -357,6 +366,15 @@ function App() {
         </div>
 
         <div className="topbar-right">
+          <button
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            className="theme-toggle-btn"
+            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            id="theme-toggle"
+          >
+            {theme === 'light' ? <i className="ri-moon-line"></i> : <i className="ri-sun-line"></i>}
+          </button>
+
           <div style={{ position: "relative" }} ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -412,7 +430,7 @@ function App() {
             <BlockNoteView 
               editor={editor} 
               onChange={handleEditorChange}
-              theme="light"
+              theme={theme}
             />
           </div>
         </main>
