@@ -165,10 +165,29 @@ function App() {
     ];
   };
 
+  // Local file upload handler converting assets to Base64 data URLs
+  const handleUploadFile = useCallback(async (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to convert asset to Base64'));
+        }
+      };
+      reader.onerror = () => {
+        reject(reader.error || new Error('FileReader encountered an error'));
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
   // Instantiates the editor once the initial content is loaded
   const editor = useCreateBlockNote(
     {
       initialContent: initialContent || undefined,
+      uploadFile: handleUploadFile,
       tables: {
         headers: true,
         splitCells: true,

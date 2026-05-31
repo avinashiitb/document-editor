@@ -4,6 +4,31 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Suppress benign ResizeObserver loop notifications which trigger Webpack client overlays
+window.addEventListener('error', (e) => {
+  if (
+    e.message && (
+      e.message.includes('ResizeObserver loop limit exceeded') ||
+      e.message.includes('ResizeObserver loop completed with undelivered notifications')
+    )
+  ) {
+    e.stopImmediatePropagation();
+  }
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  if (
+    e.reason &&
+    e.reason.message && (
+      e.reason.message.includes('ResizeObserver loop limit exceeded') ||
+      e.reason.message.includes('ResizeObserver loop completed with undelivered notifications')
+    )
+  ) {
+    e.stopImmediatePropagation();
+  }
+});
+
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
