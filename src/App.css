@@ -240,3 +240,111 @@
   animation: spin-anim 1s linear infinite;
   display: inline-block;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Advanced BlockNote Tables & Mantine UI Custom Styling
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Default header row color should be gray */
+.bn-table th,
+.bn-editor th,
+.bn-table thead tr,
+.bn-editor thead tr {
+  background-color: #F3F4F6 !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+/* Make table borders clean and modern */
+.bn-table,
+.bn-editor table {
+  border-collapse: collapse !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+.bn-table td,
+.bn-editor td {
+  border: 1px solid #E5E7EB !important;
+  padding: 8px 12px !important;
+}
+
+/* Highlight the whole row on hover or when focused/active */
+.bn-table tr {
+  transition: background-color 0.15s ease !important;
+}
+
+.bn-table tr:hover {
+  background-color: #F9FAFB !important;
+}
+
+/* Row-level focus selection: highlight row when editing cells within it */
+.bn-table tr:focus-within {
+  background-color: #F3F4F6 !important;
+}
+
+/* Style Mantine formatting/action buttons in the editor menus */
+.mantine-Button-root {
+  transition: all 0.2s ease !important;
+  border-radius: 6px !important;
+}
+
+.mantine-Button-root:hover {
+  opacity: 0.95 !important;
+  transform: translateY(-0.5px);
+}
+
+.mantine-Button-inner {
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  color: inherit !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Code Formatting Overrides (Inline Code & Code Blocks)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Premium Inline Code styling (Notion/GitHub inspired) */
+.bn-editor code,
+.bn-inline-content code,
+code {
+  background-color: #F3F4F6 !important;
+  color: #EB5757 !important; /* Premium pinkish-red Notion-style color */
+  padding: 0px 5px !important;
+  border-radius: 4px !important;
+  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
+  font-size: 0.9em !important;
+  border: 1px solid #E5E7EB !important;
+  word-break: break-word !important;
+}
+
+/* Premium Block-level Code Block styling */
+.bn-editor pre,
+.bn-block[data-content-type="code"] pre,
+.bn-block-content[data-content-type="code"] pre,
+pre {
+  background-color: #F9FAFB !important;
+  border: 1px solid #E5E7EB !important;
+  border-radius: 8px !important;
+  padding: 16px 20px !important;
+  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  overflow-x: auto !important;
+  color: #1F2937 !important;
+}
+
+/* Ensure code text inside a pre block behaves properly and does not inherit inline styles */
+.bn-editor pre code,
+.bn-block[data-content-type="code"] pre code,
+pre code {
+  background-color: transparent !important;
+  color: #1F2937 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  font-size: inherit !important;
+  word-break: normal !important;
+}
+
+

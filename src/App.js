@@ -158,7 +158,15 @@ function App() {
 
   // Instantiates the editor once the initial content is loaded
   const editor = useCreateBlockNote(
-    initialContent ? { initialContent } : undefined,
+    {
+      initialContent: initialContent || undefined,
+      tables: {
+        headers: true,
+        splitCells: true,
+        cellBackgroundColor: true,
+        cellTextColor: true
+      }
+    },
     [initialContent !== null]
   );
 
