@@ -221,6 +221,7 @@
   width: 100%;
   background-color: #FFFFFF;
   min-height: 100%;
+  height: fit-content;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.04);
   padding: 0px 56px;
   box-sizing: border-box;
