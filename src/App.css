@@ -35,15 +35,15 @@
 /* Premium Topbar styling */
 .readdy-light-topbar {
   display: flex;
-  height: 48px;
-  padding: 0 24px;
-  background-color: #FFFFFF;
+  height: 40px;
+  padding: 0 16px 0 20px;
+  background-color: #F8F9FA;
   border-bottom: 1px solid #E5E7EB;
   align-items: center;
   justify-content: space-between;
   user-select: none;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
-  z-index: 10;
+  font-family: 'Inter', sans-serif;
+  color: #374151;
 }
 
 .topbar-left, .topbar-center, .topbar-right {
@@ -117,27 +117,29 @@
   cursor: pointer;
 }
 
-/* Theme Toggle Button */
-.theme-toggle-btn {
+/* Export Icon Button Styling */
+.export-icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   background-color: #F9FAFB;
   border: 1px solid #E5E7EB;
   border-radius: 6px;
-  font-size: 16px;
-  color: #4B5563;
+  font-size: 15px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  margin-right: 8px;
+  transition: all 0.15s ease, transform 0.1s ease;
 }
 
-.theme-toggle-btn:hover {
+.export-icon-btn:hover {
   background-color: #F3F4F6;
   border-color: #D1D5DB;
-  color: #111827;
+  transform: translateY(-1px);
+}
+
+.export-icon-btn:active {
+  transform: translateY(0px);
 }
 
 /* Options dropdown styling */
@@ -369,17 +371,15 @@
   color: #FFFFFF !important;
 }
 
-/* Theme Toggle Dark mode */
-.dark-theme .theme-toggle-btn {
+/* Export Icon Button Dark mode */
+.dark-theme .export-icon-btn {
   background-color: #2A2A2A !important;
   border: 1px solid #3D3D3D !important;
-  color: #D1D5DB !important;
 }
 
-.dark-theme .theme-toggle-btn:hover {
+.dark-theme .export-icon-btn:hover {
   background-color: #333333 !important;
   border-color: #4B5563 !important;
-  color: #FFFFFF !important;
 }
 
 /* Dropdown Options Dark mode */

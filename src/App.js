@@ -37,6 +37,8 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+
+
   // Fetch FileId from context or URL search params
   const getFileId = () => {
     let id = window.pluginAPI?.context?.fileId;
@@ -232,31 +234,37 @@ function App() {
 
   // Sync / Save callback
   const handleSave = useCallback(async (blocksToSave, showNotification = false) => {
-    if (!window.pluginAPI || !fileId || !blocksToSave) return;
+    if (window.pluginAPI && window.pluginAPI.updateDocument && fileId && blocksToSave) {
+      console.log('Attempting to save block document...');
+      setSaveStatus('saving');
 
-    setSaveStatus('saving');
-    const payloadData = { blocks: blocksToSave };
+      const payloadData = { blocks: blocksToSave };
+      console.log('Payload structure mapping to block data:', payloadData);
 
-    const updatedContents = {
-      version: "1.0.0",
-      time: Date.now(),
-      blocks: [{ type: "document-editor", data: payloadData }],
-      parent_file: fileId,
-      _id: contentDoc?._id,
-    };
+      const updatedContents = {
+        version: "1.0.0",
+        time: Date.now(),
+        blocks: [{ type: "document-editor", data: payloadData }],
+        parent_file: fileId,
+        _id: contentDoc?._id,
+      };
 
-    try {
-      await window.pluginAPI.updateDocument(fileId, [updatedContents]);
-      setSaveStatus('saved');
-      if (showNotification && window.pluginAPI.notify) {
-        window.pluginAPI.notify('Document saved successfully', 'success');
+      try {
+        await window.pluginAPI.updateDocument(fileId, [updatedContents]);
+        console.log('Save operation completed successfully via updateDocument');
+        setSaveStatus('saved');
+        if (showNotification && window.pluginAPI.notify) {
+          window.pluginAPI.notify('Document saved successfully', 'success');
+        }
+      } catch (err) {
+        console.error('Save error thrown by updateDocument:', err);
+        setSaveStatus('error');
+        if (showNotification && window.pluginAPI.notify) {
+          window.pluginAPI.notify('Failed to save document', 'error');
+        }
       }
-    } catch (err) {
-      console.error('Save error:', err);
-      setSaveStatus('error');
-      if (showNotification && window.pluginAPI.notify) {
-        window.pluginAPI.notify('Failed to save document', 'error');
-      }
+    } else {
+      console.warn('Cannot save: pluginAPI, updateDocument, fileId, or blocksToSave is not defined.');
     }
   }, [fileId, contentDoc]);
 
@@ -368,8 +376,19 @@ function App() {
     <div className={`App document-editor-app ${theme}-theme`}>
       <header className="readdy-light-topbar">
         <div className="topbar-left">
-          <nav className="breadcrumb-path" aria-label="file path">
-            <i className="ri-file-text-line file-icon-nav" style={{ marginRight: 6, fontSize: 14, color: '#4F46E5' }}></i>
+          <nav
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0,
+              fontSize: 12,
+              color: '#9ca3af',
+              overflow: 'visible',
+              flexWrap: 'nowrap',
+            }}
+            aria-label="file path"
+          >
+            <i className="fa-solid fa-folder" style={{ marginRight: 6, fontSize: 11, opacity: 0.7, color: '#9ca3af' }}></i>
             {(breadcrumbs.length > 0
               ? breadcrumbs
               : [{ label: fileName, isFile: true }]
@@ -377,14 +396,34 @@ function App() {
               <React.Fragment key={idx}>
                 {!seg.isFile && (
                   <>
-                    <span className="breadcrumb-folder" title={seg.label}>
+                    <span
+                      style={{
+                        whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: '#9ca3af',
+                        cursor: 'default',
+                      }}
+                      title={seg.label}
+                    >
                       {seg.label}
                     </span>
-                    <span className="breadcrumb-chevron">›</span>
+                    <span style={{ color: '#9ca3af', opacity: 0.5, margin: '0 4px', fontSize: 13, userSelect: 'none' }}>›</span>
                   </>
                 )}
                 {seg.isFile && (
-                  <span className="breadcrumb-file" title={seg.label}>
+                  <span
+                    style={{
+                      whiteSpace: 'nowrap',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#111827',
+                      cursor: 'default',
+                    }}
+                    title={seg.label}
+                  >
                     {seg.label}
                   </span>
                 )}
@@ -416,25 +455,15 @@ function App() {
           </div>
         </div>
 
-        <div className="topbar-right">
-          <button
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-            className="theme-toggle-btn"
-            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            id="theme-toggle"
-          >
-            {theme === 'light' ? <i className="ri-moon-line"></i> : <i className="ri-sun-line"></i>}
-          </button>
-
+        <div className="topbar-right" style={{ gap: '6px' }}>
           <div style={{ position: "relative" }} ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="options-dropdown-btn"
+              className="export-icon-btn"
+              title="Export options"
               id="options-menu-trigger"
             >
-              <i className="ri-menu-fill" style={{ marginRight: "6px", color: "#4F46E5" }}></i>
-              Document options
-              <i className="ri-arrow-down-s-line" style={{ marginLeft: "4px", color: "#6b7280" }}></i>
+              <i className="ri-download-2-line" style={{ color: "#4F46E5" }}></i>
             </button>
 
             {isMenuOpen && (
