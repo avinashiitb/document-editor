@@ -205,32 +205,28 @@ function App() {
       pasteHandler: ({ event, editor, defaultPasteHandler }) => {
         if (event.clipboardData?.types.includes("text/plain")) {
           const text = event.clipboardData.getData("text/plain");
+          const cursor = editor.getTextCursorPosition();
           
-          (async () => {
-            try {
-              const blocks = await editor.tryParseMarkdownToBlocks(text);
-              const cursor = editor.getTextCursorPosition();
-              if (cursor && cursor.block) {
-                const isBlockEmpty = 
-                  !cursor.block.content || 
-                  cursor.block.content.length === 0 || 
-                  (cursor.block.content.length === 1 && cursor.block.content[0].type === "text" && cursor.block.content[0].text === "");
+          if (cursor && cursor.block) {
+            const isBlockEmpty = 
+              !cursor.block.content || 
+              cursor.block.content.length === 0 || 
+              (cursor.block.content.length === 1 && cursor.block.content[0].type === "text" && cursor.block.content[0].text === "");
 
-                if (isBlockEmpty && cursor.block.type === "paragraph") {
+            // Only intercept paste to parse as markdown blocks if pasting into an empty paragraph block
+            if (isBlockEmpty && cursor.block.type === "paragraph") {
+              (async () => {
+                try {
+                  const blocks = await editor.tryParseMarkdownToBlocks(text);
                   editor.replaceBlocks([cursor.block.id], blocks);
-                } else {
-                  editor.insertBlocks(blocks, cursor.block.id, "after");
+                } catch (err) {
+                  console.error("Failed to parse pasted markdown:", err);
+                  defaultPasteHandler();
                 }
-              } else {
-                editor.replaceBlocks(editor.document, blocks);
-              }
-            } catch (err) {
-              console.error("Failed to parse pasted markdown:", err);
-              defaultPasteHandler();
+              })();
+              return true;
             }
-          })();
-          
-          return true;
+          }
         }
         return defaultPasteHandler();
       }
