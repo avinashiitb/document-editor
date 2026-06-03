@@ -15,6 +15,33 @@ import { AddDocBlock, insertAddDocBlock } from './blocks/AddDocBlock';
 import { sanitizeBlocks } from './utils/editorUtils';
 import TopBar from './header/topbar';
 
+function detectContentType(content) {
+  try {
+    JSON.parse(content);
+    return 'json';
+  } catch {}
+
+  if (content.includes('<html') || content.includes('<div')) {
+    return 'html';
+  }
+
+  if (
+    content.includes('# ') ||
+    content.includes('## ') ||
+    content.includes('```')
+  ) {
+    return 'markdown';
+  }
+
+  if (
+    content.match(/SELECT|INSERT|UPDATE|DELETE/i)
+  ) {
+    return 'sql';
+  }
+
+  return 'text';
+}
+
 // Schema Definition using custom block spec
 const schema = BlockNoteSchema.create().extend({
   blockSpecs: {
@@ -203,64 +230,47 @@ function App() {
         cellTextColor: true
       },
       pasteHandler: ({ event, editor, defaultPasteHandler }) => {
-        const isInsideCodeBlock = (target) => {
-          if (!target) return false;
-          let element = target;
-          while (element) {
-            if (
-              element.tagName === 'PRE' || 
-              element.tagName === 'CODE' || 
-              element.tagName === 'TEXTAREA' ||
-              element.classList?.contains('bn-code-block') ||
-              element.getAttribute?.('data-content-type') === 'codeBlock'
-            ) {
-              return true;
-            }
-            element = element.parentElement;
-          }
-          return false;
-        };
+        const text = event.clipboardData?.getData("text/plain");
+        if (!text) return defaultPasteHandler();
 
-        const cursor = editor.getTextCursorPosition();
-        const isCursorInCode = cursor?.block && (
-          cursor.block.type === 'codeBlock' || 
-          cursor.block.type === 'code' || 
-          cursor.block.type === 'pre'
-        );
+        const language = detectContentType(text);
+        console.log("Detected language type:", language);
 
-        if (isCursorInCode || isInsideCodeBlock(event.target)) {
+        if (language === 'html') {
           return defaultPasteHandler();
         }
 
-        if (event.clipboardData?.types.includes("text/plain")) {
-          const text = event.clipboardData.getData("text/plain");
-          
-          (async () => {
-            try {
-              const blocks = await editor.tryParseMarkdownToBlocks(text);
-              const nextCursor = editor.getTextCursorPosition();
-              if (nextCursor && nextCursor.block) {
-                const isBlockEmpty = 
-                  !nextCursor.block.content || 
-                  nextCursor.block.content.length === 0 || 
-                  (nextCursor.block.content.length === 1 && nextCursor.block.content[0].type === "text" && nextCursor.block.content[0].text === "");
+        if (language === 'markdown') {
+          const cursor = editor.getTextCursorPosition();
+          const target = event.target;
+          const isInCode = cursor?.block?.type === 'codeBlock' || 
+            (target && typeof target.closest === 'function' && target.closest('pre, code, textarea, .bn-code-block, [data-content-type="codeBlock"]'));
 
-                if (isBlockEmpty && nextCursor.block.type === "paragraph") {
-                  editor.replaceBlocks([nextCursor.block.id], blocks);
-                } else {
-                  editor.insertBlocks(blocks, nextCursor.block.id, "after");
-                }
+          if (!isInCode) {
+            try {
+              const blocks = editor.tryParseMarkdownToBlocks(text);
+              const currentBlock = editor.getTextCursorPosition()?.block;
+              const isBlockEmpty = currentBlock && (
+                !currentBlock.content || 
+                currentBlock.content.length === 0 || 
+                (currentBlock.content.length === 1 && currentBlock.content[0].type === "text" && currentBlock.content[0].text === "")
+              );
+
+              if (isBlockEmpty && currentBlock.type === "paragraph") {
+                editor.replaceBlocks([currentBlock.id], blocks);
+              } else if (currentBlock) {
+                editor.insertBlocks(blocks, currentBlock.id, "after");
               } else {
                 editor.replaceBlocks(editor.document, blocks);
               }
             } catch (err) {
-              console.error("Failed to parse pasted markdown:", err);
+              console.error("Failed to parse markdown:", err);
               defaultPasteHandler();
             }
-          })();
-          
-          return true;
+            return true;
+          }
         }
+
         return defaultPasteHandler();
       }
     },
