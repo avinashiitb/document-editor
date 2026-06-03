@@ -237,20 +237,12 @@
   line-height: 1.6 !important;
 }
 
-.light-theme .bn-editor,
-.light-theme .bn-editor h1,
-.light-theme .bn-editor h2,
-.light-theme .bn-editor h3,
-.light-theme .bn-editor p {
-  color: #2D3748 !important;
+.light-theme .bn-editor {
+  color: #2D3748;
 }
 
-.dark-theme .bn-editor,
-.dark-theme .bn-editor h1,
-.dark-theme .bn-editor h2,
-.dark-theme .bn-editor h3,
-.dark-theme .bn-editor p {
-  color: #E5E7EB !important;
+.dark-theme .bn-editor {
+  color: #E5E7EB;
 }
 
 /* Custom CSS Scrollbar style */
