@@ -1,10 +1,27 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
 
-import { useCreateBlockNote } from "@blocknote/react";
+import { defaultBlockSpecs, BlockNoteSchema } from "@blocknote/core";
+import { 
+  useCreateBlockNote,
+  getDefaultReactSlashMenuItems,
+  SuggestionMenuController
+} from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import "@blocknote/core/fonts/inter.css";
+
+import { AddDocBlock, insertAddDocBlock } from './blocks/AddDocBlock';
+import { sanitizeBlocks } from './utils/editorUtils';
+import TopBar from './header/topbar';
+
+// Schema Definition using custom block spec
+const schema = BlockNoteSchema.create().extend({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    addDoc: AddDocBlock(),
+  },
+});
 
 function App() {
   const [fileName, setFileName] = useState('Untitled Document');
@@ -15,7 +32,7 @@ function App() {
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
   
   // Theme state persisted in localStorage
-  const [theme, setTheme] = useState(() => {
+  const [theme] = useState(() => {
     return localStorage.getItem('document-editor-theme') || 'light';
   });
 
@@ -23,19 +40,7 @@ function App() {
     localStorage.setItem('document-editor-theme', theme);
   }, [theme]);
 
-  // Dropdown Menu State
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef(null);
 
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setIsMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
 
 
 
@@ -103,7 +108,7 @@ function App() {
             if (savedData && typeof savedData === 'object') {
               if (savedData.blocks) {
                 // Loaded rich text blocks from BlockNote
-                setInitialContent(savedData.blocks);
+                setInitialContent(sanitizeBlocks(savedData.blocks));
               } else if (savedData.code !== undefined && savedData.code !== null) {
                 // Graceful migration of old code-editor database entries
                 const migratedBlocks = [
@@ -121,26 +126,26 @@ function App() {
                     language: savedData.language || "javascript"
                   }
                 ];
-                setInitialContent(migratedBlocks);
+                setInitialContent(sanitizeBlocks(migratedBlocks));
               } else {
-                setInitialContent(getDefaultBlocks(fileInfo?.title));
+                setInitialContent(sanitizeBlocks(getDefaultBlocks(fileInfo?.title)));
               }
             } else {
-              setInitialContent(getDefaultBlocks(fileInfo?.title));
+              setInitialContent(sanitizeBlocks(getDefaultBlocks(fileInfo?.title)));
             }
           } else {
             console.log('No documents found. Initializing default welcome document.');
-            setInitialContent(getDefaultBlocks(fileInfo?.title));
+            setInitialContent(sanitizeBlocks(getDefaultBlocks(fileInfo?.title)));
           }
         } catch (err) {
           console.warn('Failed to load initial data:', err);
-          setInitialContent(getDefaultBlocks());
+          setInitialContent(sanitizeBlocks(getDefaultBlocks()));
         } finally {
           setIsReady(true);
         }
       } else {
         // Fallback for standalone development outside DevScribe
-        setInitialContent(getDefaultBlocks());
+        setInitialContent(sanitizeBlocks(getDefaultBlocks()));
         setIsReady(true);
       }
     };
@@ -154,15 +159,15 @@ function App() {
     return [
       {
         type: "heading",
-        content: `Welcome to ${docTitle}`
+        content: [{ type: "text", text: `Welcome to ${docTitle}`, styles: {} }]
       },
       {
         type: "paragraph",
-        content: "This is your clean, distraction-free document editing workspace. It supports robust rich text, list nesting, media blocks, and code formatting."
+        content: [{ type: "text", text: "This is your clean, distraction-free document editing workspace. It supports robust rich text, list nesting, media blocks, and code formatting.", styles: {} }]
       },
       {
         type: "paragraph",
-        content: "Type '/' to see all block types and formatting commands."
+        content: [{ type: "text", text: "Type '/' to see all block types and formatting commands.", styles: {} }]
       }
     ];
   };
@@ -188,6 +193,7 @@ function App() {
   // Instantiates the editor once the initial content is loaded
   const editor = useCreateBlockNote(
     {
+      schema: schema,
       initialContent: initialContent || undefined,
       uploadFile: handleUploadFile,
       tables: {
@@ -309,60 +315,6 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [editor, handleSave]);
 
-  // Export action handling
-  const handleExport = async (format) => {
-    if (!editor) return;
-    try {
-      let payload = '';
-      let fileExtension = '';
-      let mimeType = '';
-
-      if (format === 'ds') {
-        payload = JSON.stringify({
-          _id: contentDoc?._id || `doc-${Date.now()}`,
-          version: "1.0.0",
-          time: Date.now(),
-          parent_file: fileId || "standalone-export",
-          blocks: [{ type: "document-editor", data: { blocks: editor.document } }],
-          createdAt: contentDoc?.createdAt || Date.now(),
-          updatedAt: Date.now(),
-          fileType: "document-editor"
-        }, null, 2);
-        fileExtension = 'ds';
-        mimeType = 'application/json';
-      } else if (format === 'md') {
-        payload = await editor.blocksToMarkdownLossy(editor.document);
-        fileExtension = 'md';
-        mimeType = 'text/markdown';
-      } else if (format === 'html') {
-        payload = await editor.blocksToHTMLLossy(editor.document);
-        fileExtension = 'html';
-        mimeType = 'text/html';
-      }
-
-      const blob = new Blob([payload], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const safeName = fileName ? fileName.split('.')[0] : 'document';
-      a.download = `${safeName}.${fileExtension}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      if (window.pluginAPI && window.pluginAPI.notify) {
-        window.pluginAPI.notify(`Exported as ${format.toUpperCase()} successfully`, 'success');
-      }
-    } catch (err) {
-      console.error('Export failed:', err);
-      if (window.pluginAPI && window.pluginAPI.notify) {
-        window.pluginAPI.notify('Failed to export document', 'error');
-      }
-    }
-    setIsMenuOpen(false);
-  };
-
   if (!isReady || !editor) {
     return (
       <div className="editor-loading">
@@ -374,135 +326,14 @@ function App() {
 
   return (
     <div className={`App document-editor-app ${theme}-theme`}>
-      <header className="readdy-light-topbar">
-        <div className="topbar-left">
-          <nav
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0,
-              fontSize: 12,
-              color: '#9ca3af',
-              overflow: 'visible',
-              flexWrap: 'nowrap',
-            }}
-            aria-label="file path"
-          >
-            <i className="fa-solid fa-folder" style={{ marginRight: 6, fontSize: 11, opacity: 0.7, color: '#9ca3af' }}></i>
-            {(breadcrumbs.length > 0
-              ? breadcrumbs
-              : [{ label: fileName, isFile: true }]
-            ).map((seg, idx) => (
-              <React.Fragment key={idx}>
-                {!seg.isFile && (
-                  <>
-                    <span
-                      style={{
-                        whiteSpace: 'nowrap',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: '#9ca3af',
-                        cursor: 'default',
-                      }}
-                      title={seg.label}
-                    >
-                      {seg.label}
-                    </span>
-                    <span style={{ color: '#9ca3af', opacity: 0.5, margin: '0 4px', fontSize: 13, userSelect: 'none' }}>›</span>
-                  </>
-                )}
-                {seg.isFile && (
-                  <span
-                    style={{
-                      whiteSpace: 'nowrap',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: '#111827',
-                      cursor: 'default',
-                    }}
-                    title={seg.label}
-                  >
-                    {seg.label}
-                  </span>
-                )}
-              </React.Fragment>
-            ))}
-          </nav>
-        </div>
-
-        <div className="topbar-center">
-          <div className="save-status-container">
-            {saveStatus === 'saved' && (
-              <span className="save-status saved" title="All changes saved to DB">
-                <i className="ri-checkbox-circle-fill"></i>
-                Saved
-              </span>
-            )}
-            {saveStatus === 'saving' && (
-              <span className="save-status saving" title="Saving changes...">
-                <i className="ri-loader-4-line ri-spin"></i>
-                Saving
-              </span>
-            )}
-            {saveStatus === 'error' && (
-              <span className="save-status error" title="Connection error, click Ctrl/Cmd + S to retry">
-                <i className="ri-error-warning-fill"></i>
-                Save Error
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="topbar-right" style={{ gap: '6px' }}>
-          <div style={{ position: "relative" }} ref={menuRef}>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="export-icon-btn"
-              title="Export options"
-              id="options-menu-trigger"
-            >
-              <i className="ri-download-2-line" style={{ color: "#4F46E5" }}></i>
-            </button>
-
-            {isMenuOpen && (
-              <div className="options-dropdown-menu">
-                <div style={{ padding: "4px 0" }}>
-                  <div className="menu-section-header">Export document</div>
-                  
-                  <button
-                    className="menu-item-light"
-                    id="export-ds-btn"
-                    onClick={() => handleExport('ds')}
-                  >
-                    <i className="ri-file-code-fill" style={{ marginRight: "10px", color: "#4F46E5" }}></i>
-                    DevScribe (.ds)
-                  </button>
-
-                  <button
-                    className="menu-item-light"
-                    id="export-md-btn"
-                    onClick={() => handleExport('md')}
-                  >
-                    <i className="ri-markdown-fill" style={{ marginRight: "10px", color: "#009688" }}></i>
-                    Markdown (.md)
-                  </button>
-
-                  <button
-                    className="menu-item-light"
-                    id="export-html-btn"
-                    onClick={() => handleExport('html')}
-                  >
-                    <i className="ri-html5-fill" style={{ marginRight: "10px", color: "#FF5722" }}></i>
-                    Web Page (.html)
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <TopBar
+        fileName={fileName}
+        breadcrumbs={breadcrumbs}
+        saveStatus={saveStatus}
+        editor={editor}
+        contentDoc={contentDoc}
+        fileId={fileId}
+      />
 
       <div className="workspace">
         <main className="editor-container" id="blocknote-editor-wrapper">
@@ -511,7 +342,19 @@ function App() {
               editor={editor} 
               onChange={handleEditorChange}
               theme={theme}
-            />
+              slashMenu={false}
+            >
+              <SuggestionMenuController
+                triggerCharacter={"/"}
+                getItems={async (query) => {
+                  const items = [...getDefaultReactSlashMenuItems(editor), insertAddDocBlock(editor)];
+                  return items.filter(item => 
+                    item.title.toLowerCase().includes(query.toLowerCase()) ||
+                    item.aliases?.some(alias => alias.toLowerCase().includes(query.toLowerCase()))
+                  );
+                }}
+              />
+            </BlockNoteView>
           </div>
         </main>
       </div>
