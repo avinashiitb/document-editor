@@ -2,10 +2,19 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
 
 import { defaultBlockSpecs, BlockNoteSchema } from "@blocknote/core";
+import { SideMenuExtension } from "@blocknote/core/extensions";
 import { 
   useCreateBlockNote,
   getDefaultReactSlashMenuItems,
-  SuggestionMenuController
+  SuggestionMenuController,
+  SideMenuController,
+  SideMenu,
+  DragHandleButton,
+  DragHandleMenu,
+  RemoveBlockItem,
+  BlockColorsItem,
+  useBlockNoteEditor,
+  useExtensionState
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
@@ -41,6 +50,90 @@ function detectContentType(content) {
 
   return 'text';
 }
+
+const CustomDragHandleMenu = (props) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const editor = useBlockNoteEditor();
+  const block = useExtensionState(SideMenuExtension, {
+    editor,
+    selector: (state) => state?.block,
+  });
+
+  const conversionItems = [
+    { type: "paragraph", label: "Paragraph", icon: "ri-paragraph" },
+    { type: "heading", level: 1, label: "Heading 1", icon: "ri-h-1" },
+    { type: "heading", level: 2, label: "Heading 2", icon: "ri-h-2" },
+    { type: "heading", level: 3, label: "Heading 3", icon: "ri-h-3" },
+    { type: "bulletListItem", label: "Bullet List", icon: "ri-list-unordered" },
+    { type: "numberedListItem", label: "Numbered List", icon: "ri-list-ordered" },
+    { type: "checkListItem", label: "Check List", icon: "ri-checkbox-line" },
+    { type: "toggleListItem", label: "Toggle List", icon: "ri-arrow-right-s-line" },
+    { type: "quote", label: "Quote", icon: "ri-double-quotes-l" },
+    { type: "codeBlock", label: "Code Block", icon: "ri-code-box-line" },
+  ];
+
+  const filteredItems = conversionItems.filter((item) =>
+    item.label.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <DragHandleMenu {...props}>
+      <RemoveBlockItem {...props}>Delete</RemoveBlockItem>
+      <BlockColorsItem {...props}>Colors</BlockColorsItem>
+      <div style={{ borderTop: '1px solid #E5E7EB', margin: '4px 0' }} />
+      <div className="menu-section-header" style={{ padding: '4px 12px', fontSize: '11px', color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>
+        Convert to
+      </div>
+      <div className="menu-search-wrapper">
+        <input
+          type="text"
+          className="menu-search-input"
+          placeholder="Search block types..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onClick={(e) => e.stopPropagation()} // Prevent closing menu on click
+        />
+      </div>
+      <div className="block-conversion-list">
+        {filteredItems.length > 0 ? (
+          filteredItems.map((item, idx) => (
+            <button
+              key={idx}
+              className="mantine-Menu-item"
+              onClick={() => {
+                if (block) {
+                  if (item.type === "heading") {
+                    editor.updateBlock(block, { type: "heading", props: { level: item.level } });
+                  } else {
+                    editor.updateBlock(block, { type: item.type });
+                  }
+                  editor.getExtension(SideMenuExtension)?.unfreezeMenu();
+                }
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', textAlign: 'left' }}
+            >
+              <i className={item.icon} style={{ fontSize: '14px' }}></i>
+              {item.label}
+            </button>
+          ))
+        ) : (
+          <div className="block-conversion-no-results">No block types found</div>
+        )}
+      </div>
+    </DragHandleMenu>
+  );
+};
+
+const CustomSideMenu = (props) => (
+  <SideMenu {...props}>
+    <DragHandleButton
+      {...props}
+      dragHandleMenu={(menuProps) => (
+        <CustomDragHandleMenu {...menuProps} />
+      )}
+    />
+  </SideMenu>
+);
 
 // Schema Definition using custom block spec
 const schema = BlockNoteSchema.create().extend({
@@ -382,6 +475,7 @@ function App() {
               onChange={handleEditorChange}
               theme={theme}
               slashMenu={false}
+              sideMenu={false}
             >
               <SuggestionMenuController
                 triggerCharacter={"/"}
@@ -393,6 +487,7 @@ function App() {
                   );
                 }}
               />
+              <SideMenuController sideMenu={CustomSideMenu} />
             </BlockNoteView>
           </div>
         </main>
