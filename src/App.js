@@ -15,7 +15,8 @@ import {
   RemoveBlockItem,
   BlockColorsItem,
   useBlockNoteEditor,
-  useExtensionState
+  useExtensionState,
+  useComponentsContext
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
@@ -104,7 +105,8 @@ const SymbolConversionExtension = Extension.create({
   },
 });
 
-const CustomDragHandleMenu = (props) => {
+const BlockConvertItem = (props) => {
+  const Components = useComponentsContext();
   const [searchQuery, setSearchQuery] = useState("");
   const editor = useBlockNoteEditor();
   const block = useExtensionState(SideMenuExtension, {
@@ -129,50 +131,71 @@ const CustomDragHandleMenu = (props) => {
     item.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (!Components) return null;
+
+  return (
+    <Components.Generic.Menu.Root position={"right"} sub={true}>
+      <Components.Generic.Menu.Trigger sub={true}>
+        <Components.Generic.Menu.Item
+          className={"bn-menu-item"}
+          subTrigger={true}
+        >
+          {props.children}
+        </Components.Generic.Menu.Item>
+      </Components.Generic.Menu.Trigger>
+
+      <Components.Generic.Menu.Dropdown
+        sub={true}
+        className={"bn-menu-dropdown"}
+      >
+        <div className="menu-search-wrapper">
+          <input
+            type="text"
+            className="menu-search-input"
+            placeholder="Search block types..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onClick={(e) => e.stopPropagation()} // Prevent closing menu on click
+          />
+        </div>
+        <div className="block-conversion-list">
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item, idx) => (
+              <Components.Generic.Menu.Item
+                key={idx}
+                className={"bn-menu-item"}
+                onClick={() => {
+                  if (block) {
+                    if (item.type === "heading") {
+                      editor.updateBlock(block, { type: "heading", props: { level: item.level } });
+                    } else {
+                      editor.updateBlock(block, { type: item.type });
+                    }
+                    editor.getExtension(SideMenuExtension)?.unfreezeMenu();
+                  }
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className={item.icon} style={{ fontSize: '14px' }}></i>
+                  <span>{item.label}</span>
+                </div>
+              </Components.Generic.Menu.Item>
+            ))
+          ) : (
+            <div className="block-conversion-no-results">No block types found</div>
+          )}
+        </div>
+      </Components.Generic.Menu.Dropdown>
+    </Components.Generic.Menu.Root>
+  );
+};
+
+const CustomDragHandleMenu = (props) => {
   return (
     <DragHandleMenu {...props}>
       <RemoveBlockItem {...props}>Delete</RemoveBlockItem>
       <BlockColorsItem {...props}>Colors</BlockColorsItem>
-      <div style={{ borderTop: '1px solid #E5E7EB', margin: '4px 0' }} />
-      <div className="menu-section-header" style={{ padding: '4px 12px', fontSize: '11px', color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>
-        Convert to
-      </div>
-      <div className="menu-search-wrapper">
-        <input
-          type="text"
-          className="menu-search-input"
-          placeholder="Search block types..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onClick={(e) => e.stopPropagation()} // Prevent closing menu on click
-        />
-      </div>
-      <div className="block-conversion-list">
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item, idx) => (
-            <button
-              key={idx}
-              className="mantine-Menu-item"
-              onClick={() => {
-                if (block) {
-                  if (item.type === "heading") {
-                    editor.updateBlock(block, { type: "heading", props: { level: item.level } });
-                  } else {
-                    editor.updateBlock(block, { type: item.type });
-                  }
-                  editor.getExtension(SideMenuExtension)?.unfreezeMenu();
-                }
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', textAlign: 'left' }}
-            >
-              <i className={item.icon} style={{ fontSize: '14px' }}></i>
-              {item.label}
-            </button>
-          ))
-        ) : (
-          <div className="block-conversion-no-results">No block types found</div>
-        )}
-      </div>
+      <BlockConvertItem>Convert to</BlockConvertItem>
     </DragHandleMenu>
   );
 };
