@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
+import { Extension, textInputRule } from "@tiptap/core";
 
 import { defaultBlockSpecs, BlockNoteSchema } from "@blocknote/core";
 import { SideMenuExtension } from "@blocknote/core/extensions";
@@ -50,6 +51,58 @@ function detectContentType(content) {
 
   return 'text';
 }
+
+const SymbolConversionExtension = Extension.create({
+  name: "symbolConversion",
+  addInputRules() {
+    return [
+      textInputRule({
+        find: /->$/,
+        replace: "→",
+      }),
+      textInputRule({
+        find: /<-$/,
+        replace: "←",
+      }),
+      textInputRule({
+        find: /!=$/,
+        replace: "≠",
+      }),
+      textInputRule({
+        find: /=>$/,
+        replace: "⇒",
+      }),
+      textInputRule({
+        find: />=$/,
+        replace: "≥",
+      }),
+      textInputRule({
+        find: /<=$/,
+        replace: "≤",
+      }),
+      textInputRule({
+        find: /\+-$/,
+        replace: "±",
+      }),
+      textInputRule({
+        find: /\.\.\.$/,
+        replace: "…",
+      }),
+      textInputRule({
+        find: /\(c\)$/i,
+        replace: "©",
+      }),
+      textInputRule({
+        find: /\(r\)$/i,
+        replace: "®",
+      }),
+      textInputRule({
+        find: /\(tm\)$/i,
+        replace: "™",
+      }),
+    ];
+  },
+});
 
 const CustomDragHandleMenu = (props) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -365,6 +418,9 @@ function App() {
         }
 
         return defaultPasteHandler();
+      },
+      _tiptapOptions: {
+        extensions: [SymbolConversionExtension],
       }
     },
     [initialContent !== null]
