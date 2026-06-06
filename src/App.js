@@ -23,6 +23,7 @@ import "@blocknote/mantine/style.css";
 import "@blocknote/core/fonts/inter.css";
 
 import { AddDocBlock, insertAddDocBlock } from './blocks/AddDocBlock';
+import { CustomCodeBlock } from './blocks/CustomCodeBlock';
 import { sanitizeBlocks } from './utils/editorUtils';
 import TopBar from './header/topbar';
 
@@ -211,11 +212,15 @@ const CustomSideMenu = (props) => (
   </SideMenu>
 );
 
+// Destructure defaultBlockSpecs to exclude the default codeBlock spec
+const { codeBlock: _, ...restDefaultBlockSpecs } = defaultBlockSpecs;
+
 // Schema Definition using custom block spec
-const schema = BlockNoteSchema.create().extend({
+const schema = BlockNoteSchema.create({
   blockSpecs: {
-    ...defaultBlockSpecs,
+    ...restDefaultBlockSpecs,
     addDoc: AddDocBlock(),
+    codeBlock: CustomCodeBlock(),
   },
 });
 
@@ -301,31 +306,9 @@ function App() {
               }
             }
 
-            if (savedData && typeof savedData === 'object') {
-              if (savedData.blocks) {
-                // Loaded rich text blocks from BlockNote
-                setInitialContent(sanitizeBlocks(savedData.blocks));
-              } else if (savedData.code !== undefined && savedData.code !== null) {
-                // Graceful migration of old code-editor database entries
-                const migratedBlocks = [
-                  {
-                    type: "heading",
-                    content: "Migrated Code File"
-                  },
-                  {
-                    type: "paragraph",
-                    content: "This file was migrated from a legacy code editor format."
-                  },
-                  {
-                    type: "code",
-                    content: savedData.code,
-                    language: savedData.language || "javascript"
-                  }
-                ];
-                setInitialContent(sanitizeBlocks(migratedBlocks));
-              } else {
-                setInitialContent(sanitizeBlocks(getDefaultBlocks(fileInfo?.title)));
-              }
+            if (savedData && typeof savedData === 'object' && savedData.blocks) {
+              // Loaded rich text blocks from BlockNote
+              setInitialContent(sanitizeBlocks(savedData.blocks));
             } else {
               setInitialContent(sanitizeBlocks(getDefaultBlocks(fileInfo?.title)));
             }
@@ -417,7 +400,7 @@ function App() {
 
           if (!isInCode) {
             try {
-              const blocks = editor.tryParseMarkdownToBlocks(text);
+              const blocks = sanitizeBlocks(editor.tryParseMarkdownToBlocks(text));
               const currentBlock = editor.getTextCursorPosition()?.block;
               const isBlockEmpty = currentBlock && (
                 !currentBlock.content || 

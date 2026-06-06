@@ -48,6 +48,20 @@ export const sanitizeBlocks = (blocks) => {
         styles: { code: true }
       }];
     }
+
+    if (sanitized.type === 'codeBlock') {
+      let codeText = '';
+      if (sanitized.content && Array.isArray(sanitized.content)) {
+        codeText = sanitized.content.map(inline => inline.text || '').join('');
+      } else if (typeof sanitized.content === 'string') {
+        codeText = sanitized.content;
+      }
+      sanitized.props = {
+        ...sanitized.props,
+        code: sanitized.props?.code || codeText
+      };
+      sanitized.content = [];
+    }
     
     // Recursively sanitize child blocks
     if (sanitized.children) {

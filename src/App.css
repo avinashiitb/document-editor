@@ -511,17 +511,11 @@ code {
 }
 
 /* Premium Block-level Code Block styling */
-.light-theme .bn-block-content[data-content-type=codeBlock] {
-    background-color: #ffffff !important;
-    border: 1px solid #E5E7EB !important;
-    border-radius: 8px;
-    position: relative;
-}
-
+.light-theme .bn-block-content[data-content-type=codeBlock],
 .dark-theme .bn-block-content[data-content-type=codeBlock] {
-    background-color: #161616 !important;
-    border: 1px solid #2D2D2D !important;
-    border-radius: 8px;
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
     position: relative;
 }
 
