@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createReactBlockSpec } from "@blocknote/react";
 
 // Helper to determine icon class based on file type for the configured card
@@ -29,11 +29,181 @@ const getFileListIconClass = (type) => {
   }
 };
 
+// React Component for code preview embedding via iframe
+function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigate }) {
+  const iframeRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [iframeHeight, setIframeHeight] = useState(150); // Default placeholder height
+
+  useEffect(() => {
+    const handleMessage = async (e) => {
+      if (!iframeRef.current || e.source !== iframeRef.current.contentWindow) return;
+
+      if (e.data?.type === 'PREVIEW_READY') {
+        if (window.pluginAPI?.getDocumentsByParentFile) {
+          try {
+            const data = await window.pluginAPI.getDocumentsByParentFile(fileId);
+            if (data && data.length > 0) {
+              const document = data[0];
+              let savedData = document?.blocks?.[0]?.data;
+              if (typeof savedData === 'string') {
+                try {
+                  savedData = JSON.parse(savedData);
+                } catch (err) {
+                  console.warn('Failed parsing raw block string in preview', err);
+                }
+              }
+              iframeRef.current.contentWindow.postMessage({
+                type: 'LOAD_PREVIEW',
+                data: savedData || { code: '', language: 'javascript' }
+              }, '*');
+            }
+          } catch (err) {
+            console.error("Failed to fetch preview data for code-editor:", err);
+          }
+        }
+        setLoading(false);
+      } else if (e.data?.type === 'RESIZE_PREVIEW') {
+        if (e.data.height) {
+          setIframeHeight(e.data.height);
+        }
+      } else if (e.data?.type === 'RUN_CODE') {
+        const { code, language, javaConfig, fileName } = e.data;
+        let result;
+        try {
+          if (!window.pluginAPI) {
+            result = 'Error: pluginAPI is not available.';
+          } else {
+            if (language === 'javascript') {
+              result = await window.pluginAPI.runJsCode(code);
+            } else if (language === 'typescript') {
+              result = await window.pluginAPI.runTsCode(code);
+            } else if (language === 'shell') {
+              result = await window.pluginAPI.runShellCommand(code);
+            } else if (language === 'java') {
+              // Use configuration supplied by the child code-editor context
+              const config = javaConfig || {
+                javaHome: localStorage.getItem('code_editor_java_home') || '/usr/libexec/java_home',
+                mainClass: localStorage.getItem('code_editor_main_class') || 'Main',
+                enableSecurityManager: localStorage.getItem('code_editor_enable_security_manager') === 'true',
+                jvmArgs: localStorage.getItem('code_editor_jvm_args') || '-Xmx512m -Xms256m'
+              };
+              result = await window.pluginAPI.runJavaCode(code, config);
+            } else if (language === 'sqlite') {
+              result = await window.pluginAPI.runSqliteCommand(code);
+            } else if (language === 'docker') {
+              result = await window.pluginAPI.runDockerCompose(code, 'up -d', fileName || 'preview-compose', fileId);
+            }
+
+            if (typeof result === 'object' && result !== null) {
+              result = JSON.stringify(result, null, 2);
+            } else {
+              result = String(result) || 'Executed successfully (no output).';
+            }
+          }
+        } catch (err) {
+          result = `Error: ${err.message || String(err)}`;
+        }
+
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage({
+            type: 'RUN_CODE_RESULT',
+            result: result
+          }, '*');
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [fileId]);
+
+  return (
+    <div className="doc-link-embed-container" contentEditable={false} style={{ position: 'relative', border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', margin: '8px 0', backgroundColor: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
+      <div className="doc-link-embed-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F3F4F6' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <i className="ri-file-code-fill" style={{ color: '#2563EB', fontSize: '16px' }}></i>
+          <span style={{ fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>{title}</span>
+          <span style={{ fontSize: '11px', color: '#6B7280', backgroundColor: '#E5E7EB', padding: '2px 6px', borderRadius: '4px' }}>Preview</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleNavigate(); }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '2px 8px', fontSize: '12px', color: '#374151', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
+            title="Open full page"
+          >
+            <i className="ri-external-link-line"></i>
+            Edit
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleUnlink(e); }}
+            style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: '#9CA3AF' }}
+            title="Unlink file"
+          >
+            <i className="ri-close-line" style={{ fontSize: '16px' }}></i>
+          </button>
+        </div>
+      </div>
+      <div style={{ position: 'relative', height: `${iframeHeight}px`, width: '100%', transition: 'height 0.2s ease' }}>
+        <iframe
+          ref={iframeRef}
+          title="Code Editor Preview"
+          src={`devscribe-core-plugin://code-editor/#/?fileId=${fileId}&preview=true`}
+          style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden' }}
+          scrolling="no"
+        />
+        {loading && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', color: '#6B7280', fontSize: '13px', gap: '8px' }}>
+            <i className="ri-loader-4-line ri-spin" style={{ fontSize: '18px' }}></i>
+            Loading preview...
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // 1. React Component for custom "Add/Link Document" block
 function AddDocBlockComponent({ block, editor }) {
-  const { fileId, title, fileType } = block.props;
+  const { fileId, title, fileType, embedMode } = block.props;
   const [searchQuery, setSearchQuery] = useState("");
   const [allFiles, setAllFiles] = useState([]);
+  const [folders, setFolders] = useState([]);
+
+  // Fetch folders hierarchy
+  useEffect(() => {
+    if (window.pluginAPI?.messaging?.invoke) {
+      window.pluginAPI.messaging.invoke("getFolders")
+        .then(res => {
+          setFolders(res || []);
+        })
+        .catch(err => console.error("Failed to load folders:", err));
+    }
+  }, []);
+
+  const folderMap = useMemo(() => {
+    const map = {};
+    (folders || []).forEach(f => {
+      map[f._id] = f;
+    });
+    return map;
+  }, [folders]);
+
+  const getFullPath = useCallback((folderId) => {
+    if (!folderId) return '';
+    const parts = [];
+    let currentId = folderId;
+    const visited = new Set();
+    while (currentId) {
+      if (visited.has(currentId)) break;
+      visited.add(currentId);
+      const folder = folderMap[currentId];
+      if (!folder) break;
+      parts.unshift(folder.name);
+      currentId = folder.parentId;
+    }
+    return parts.join(' / ');
+  }, [folderMap]);
 
   // Helper to extract current file's fileId
   const getFileId = () => {
@@ -66,13 +236,14 @@ function AddDocBlockComponent({ block, editor }) {
     }
   }, [currentFileId]);
 
-  const handleLinkExisting = (selectedFile) => {
+  const handleLinkExisting = (selectedFile, linkMode = 'card') => {
     editor.updateBlock(block, {
       type: "addDoc",
       props: {
         fileId: selectedFile._id,
         title: selectedFile.title,
-        fileType: selectedFile.fileType || "document"
+        fileType: selectedFile.fileType || "document",
+        embedMode: linkMode
       }
     });
   };
@@ -95,8 +266,20 @@ function AddDocBlockComponent({ block, editor }) {
     });
   };
 
-  // If a file is already linked, render a Notion-style file reference card
+  // If a file is already linked, render a Notion-style file reference card or preview if it's a code-editor file and was embedded
   if (fileId) {
+    if (fileType === 'code-editor' && embedMode === 'embed') {
+      return (
+        <CodePreviewEmbed
+          fileId={fileId}
+          title={title}
+          fileType={fileType}
+          handleUnlink={handleUnlink}
+          handleNavigate={handleNavigate}
+        />
+      );
+    }
+
     return (
       <div className="doc-link-card-configured" contentEditable={false} onClick={handleNavigate}>
         <div className="doc-link-card-left">
@@ -128,14 +311,42 @@ function AddDocBlockComponent({ block, editor }) {
           </div>
           <div className="add-doc-block-list">
             {allFiles.filter(f => (f.title || '').toLowerCase().includes(searchQuery.toLowerCase())).map(f => (
-              <button
+              <div
                 key={f._id}
                 className="add-doc-block-list-item"
-                onClick={() => handleLinkExisting(f)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '6px', borderBottom: '1px solid #F3F4F6' }}
               >
-                <i className={getFileListIconClass(f.fileType)}></i>
-                <span>{f.title || 'Untitled'}</span>
-              </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', flex: 1, marginRight: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className={getFileListIconClass(f.fileType)} style={{ color: '#9CA3AF', fontSize: '14px' }}></i>
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#374151', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      {f.title || 'Untitled'}
+                    </span>
+                  </div>
+                  {getFullPath(f.folderId) && (
+                    <span style={{ fontSize: '11px', color: '#9CA3AF', marginLeft: '22px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      {getFullPath(f.folderId)}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  <button 
+                    onClick={() => handleLinkExisting(f, 'card')}
+                    style={{ border: '1px solid #D1D5DB', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#374151', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
+                  >
+                    Link
+                  </button>
+                  {f.fileType === 'code-editor' && (
+                    <button 
+                      onClick={() => handleLinkExisting(f, 'embed')}
+                      style={{ border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#FFFFFF', backgroundColor: '#4F46E5', cursor: 'pointer' }}
+                    >
+                      Embed
+                    </button>
+                  )}
+                </div>
+              </div>
             ))}
             {allFiles.filter(f => (f.title || '').toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
               <div className="add-doc-block-list-empty">
@@ -156,7 +367,8 @@ export const AddDocBlock = createReactBlockSpec(
     propSchema: {
       fileId: { default: "" },
       title: { default: "" },
-      fileType: { default: "document" }
+      fileType: { default: "document" },
+      embedMode: { default: "card" }
     },
     content: "none",
   },
