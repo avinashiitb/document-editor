@@ -33,7 +33,9 @@ const getFileListIconClass = (type) => {
 function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigate }) {
   const iframeRef = useRef(null);
   const [loading, setLoading] = useState(true);
-  const [iframeHeight, setIframeHeight] = useState(150); // Default placeholder height
+  const isDiag = fileType === 'archflow' || fileType === 'diagram';
+  const defaultHeight = isDiag ? 450 : 150;
+  const [iframeHeight, setIframeHeight] = useState(defaultHeight);
 
   useEffect(() => {
     const handleMessage = async (e) => {
@@ -45,7 +47,10 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
             const data = await window.pluginAPI.getDocumentsByParentFile(fileId);
             if (data && data.length > 0) {
               const document = data[0];
-              let savedData = document?.blocks?.[0]?.data;
+              const blockObj = isDiag
+                ? (document?.blocks?.find(b => b.type === "archflow") || document?.blocks?.[0])
+                : document?.blocks?.[0];
+              let savedData = blockObj?.data;
               if (typeof savedData === 'string') {
                 try {
                   savedData = JSON.parse(savedData);
@@ -55,11 +60,11 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
               }
               iframeRef.current.contentWindow.postMessage({
                 type: 'LOAD_PREVIEW',
-                data: savedData || { code: '', language: 'javascript' }
+                data: savedData || (isDiag ? { nodes: [], edges: [] } : { code: '', language: 'javascript' })
               }, '*');
             }
           } catch (err) {
-            console.error("Failed to fetch preview data for code-editor:", err);
+            console.error(`Failed to fetch preview data for ${isDiag ? 'archflow' : 'code-editor'}:`, err);
           }
         }
         setLoading(false);
@@ -81,7 +86,6 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
             } else if (language === 'shell') {
               result = await window.pluginAPI.runShellCommand(code);
             } else if (language === 'java') {
-              // Use configuration supplied by the child code-editor context
               const config = javaConfig || {
                 javaHome: localStorage.getItem('code_editor_java_home') || '/usr/libexec/java_home',
                 mainClass: localStorage.getItem('code_editor_main_class') || 'Main',
@@ -116,13 +120,15 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fileId]);
+  }, [fileId, isDiag]);
+
+  const pluginId = isDiag ? 'archflow' : 'code-editor';
 
   return (
     <div className="doc-link-embed-container" contentEditable={false} style={{ position: 'relative', border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', margin: '8px 0', backgroundColor: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
       <div className="doc-link-embed-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F3F4F6' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <i className="ri-file-code-fill" style={{ color: '#2563EB', fontSize: '16px' }}></i>
+          <i className={isDiag ? "ri-bubble-chart-fill" : "ri-file-code-fill"} style={{ color: isDiag ? '#8B5CF6' : '#2563EB', fontSize: '16px' }}></i>
           <span style={{ fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>{title}</span>
           <span style={{ fontSize: '11px', color: '#6B7280', backgroundColor: '#E5E7EB', padding: '2px 6px', borderRadius: '4px' }}>Preview</span>
         </div>
@@ -147,8 +153,8 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
       <div style={{ position: 'relative', height: `${iframeHeight}px`, width: '100%', transition: 'height 0.2s ease' }}>
         <iframe
           ref={iframeRef}
-          title="Code Editor Preview"
-          src={`devscribe-core-plugin://code-editor/#/?fileId=${fileId}&preview=true`}
+          title={isDiag ? "Diagram Editor Preview" : "Code Editor Preview"}
+          src={`devscribe-core-plugin://${pluginId}/#/?fileId=${fileId}&preview=true`}
           style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden' }}
           scrolling="no"
         />
@@ -266,14 +272,96 @@ function AddDocBlockComponent({ block, editor }) {
     });
   };
 
-  // If a file is already linked, render a Notion-style file reference card or preview if it's a code-editor file and was embedded
+  const [actualFileType, setActualFileType] = useState(fileType);
+
+  useEffect(() => {
+    setActualFileType(fileType);
+  }, [fileType]);
+
+  useEffect(() => {
+    if (!fileId) return;
+    
+    // We only need to resolve if it is currently classified as 'document' or undefined/empty
+    if (fileType && fileType !== 'document') return;
+
+    let isMounted = true;
+
+    const resolveFileType = async () => {
+      try {
+        // 1. Fetch file details to check type in files table
+        if (window.pluginAPI?.getFileDetailsById) {
+          const fileInfo = await window.pluginAPI.getFileDetailsById(fileId);
+          if (!isMounted) return;
+          
+          if (fileInfo && fileInfo.fileType && fileInfo.fileType !== 'document') {
+            setActualFileType(fileInfo.fileType);
+            editor.updateBlock(block, {
+              props: {
+                ...block.props,
+                fileType: fileInfo.fileType
+              }
+            });
+            return;
+          }
+        }
+
+        // 2. Fetch documents associated to inspect first block type (fallback for legacy imports)
+        if (window.pluginAPI?.getDocumentsByParentFile) {
+          const docs = await window.pluginAPI.getDocumentsByParentFile(fileId);
+          if (!isMounted) return;
+
+          if (docs && docs.length > 0) {
+            const doc = docs[0];
+            let blocks = doc.blocks;
+            if (typeof blocks === 'string') {
+              try { blocks = JSON.parse(blocks); } catch (e) {}
+            }
+
+            if (Array.isArray(blocks) && blocks.length > 0) {
+              const firstBlock = blocks[0];
+              let resolvedType = 'document';
+              if (firstBlock.type === 'code-editor') {
+                resolvedType = 'code-editor';
+              } else if (firstBlock.type === 'promptly') {
+                resolvedType = 'promptly';
+              } else if (firstBlock.type === 'diagram') {
+                resolvedType = 'diagram';
+              }
+
+              if (resolvedType !== 'document') {
+                setActualFileType(resolvedType);
+                editor.updateBlock(block, {
+                  props: {
+                    ...block.props,
+                    fileType: resolvedType
+                  }
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed resolving actual fileType for link:", err);
+      }
+    };
+
+    resolveFileType();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fileId, fileType, block, editor]);
+
+  // If a file is already linked, render a Notion-style file reference card or preview if it's an embeddable file and was embedded
+  const isEmbeddableType = actualFileType === 'code-editor' || actualFileType === 'archflow' || actualFileType === 'diagram';
+  const resolvedEmbedMode = embedMode || (isEmbeddableType ? 'embed' : 'card');
   if (fileId) {
-    if (fileType === 'code-editor' && embedMode === 'embed') {
+    if (isEmbeddableType && resolvedEmbedMode === 'embed') {
       return (
         <CodePreviewEmbed
           fileId={fileId}
           title={title}
-          fileType={fileType}
+          fileType={actualFileType}
           handleUnlink={handleUnlink}
           handleNavigate={handleNavigate}
         />
@@ -283,7 +371,7 @@ function AddDocBlockComponent({ block, editor }) {
     return (
       <div className="doc-link-card-configured" contentEditable={false} onClick={handleNavigate}>
         <div className="doc-link-card-left">
-          <i className={`${getFileIconClass(fileType)} doc-link-card-icon`}></i>
+          <i className={`${getFileIconClass(actualFileType)} doc-link-card-icon`}></i>
           <span className="doc-link-card-title">{title}</span>
         </div>
         <button className="doc-link-card-unlink-btn" onClick={handleUnlink} title="Unlink file">
@@ -292,6 +380,7 @@ function AddDocBlockComponent({ block, editor }) {
       </div>
     );
   }
+
 
   // Unconfigured state: Render the search and link selector inside the block
   return (
@@ -337,7 +426,7 @@ function AddDocBlockComponent({ block, editor }) {
                   >
                     Link
                   </button>
-                  {f.fileType === 'code-editor' && (
+                  {(f.fileType === 'code-editor' || f.fileType === 'archflow' || f.fileType === 'diagram') && (
                     <button 
                       onClick={() => handleLinkExisting(f, 'embed')}
                       style={{ border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#FFFFFF', backgroundColor: '#4F46E5', cursor: 'pointer' }}
@@ -368,7 +457,7 @@ export const AddDocBlock = createReactBlockSpec(
       fileId: { default: "" },
       title: { default: "" },
       fileType: { default: "document" },
-      embedMode: { default: "card" }
+      embedMode: { default: "" }
     },
     content: "none",
   },
