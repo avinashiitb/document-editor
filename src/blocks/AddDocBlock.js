@@ -5,6 +5,7 @@ import { createReactBlockSpec } from "@blocknote/react";
 const getFileIconClass = (type) => {
   switch (type) {
     case 'diagram':
+    case 'archflow':
     case 'canvas':
       return 'ri-bubble-chart-fill';
     case 'terminal':
@@ -19,6 +20,7 @@ const getFileIconClass = (type) => {
 const getFileListIconClass = (type) => {
   switch (type) {
     case 'diagram':
+    case 'archflow':
     case 'canvas':
       return 'ri-bubble-chart-line';
     case 'terminal':
@@ -324,8 +326,8 @@ function AddDocBlockComponent({ block, editor }) {
                 resolvedType = 'code-editor';
               } else if (firstBlock.type === 'promptly') {
                 resolvedType = 'promptly';
-              } else if (firstBlock.type === 'diagram') {
-                resolvedType = 'diagram';
+              } else if (firstBlock.type === 'diagram' || firstBlock.type === 'archflow') {
+                resolvedType = 'archflow';
               }
 
               if (resolvedType !== 'document') {
