@@ -11,6 +11,10 @@ const getFileIconClass = (type) => {
     case 'terminal':
     case 'promptly':
       return 'ri-terminal-box-fill';
+    case 'json':
+      return 'ri-braces-fill';
+    case 'data-bridge':
+      return 'ri-database-2-fill';
     default:
       return 'ri-file-text-fill';
   }
@@ -26,6 +30,10 @@ const getFileListIconClass = (type) => {
     case 'terminal':
     case 'promptly':
       return 'ri-terminal-box-line';
+    case 'json':
+      return 'ri-braces-line';
+    case 'data-bridge':
+      return 'ri-database-2-line';
     default:
       return 'ri-file-text-line';
   }
@@ -36,7 +44,10 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
   const iframeRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const isDiag = fileType === 'archflow' || fileType === 'diagram';
-  const defaultHeight = isDiag ? 450 : 150;
+  const isJson = fileType === 'json';
+  const isDataBridge = fileType === 'data-bridge';
+  const rawDefaultHeight = isDiag ? 450 : (isJson ? 200 : (isDataBridge ? 450 : 150));
+  const defaultHeight = Math.min(800, Math.max(200, rawDefaultHeight));
   const [iframeHeight, setIframeHeight] = useState(defaultHeight);
 
   useEffect(() => {
@@ -51,7 +62,11 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
               const document = data[0];
               const blockObj = isDiag
                 ? (document?.blocks?.find(b => b.type === "archflow") || document?.blocks?.[0])
-                : document?.blocks?.[0];
+                : (isJson
+                    ? (document?.blocks?.find(b => b.type === "json-analyzer") || document?.blocks?.[0])
+                    : (isDataBridge
+                        ? (document?.blocks?.find(b => b.type === "data-bridge") || document?.blocks?.[0])
+                        : document?.blocks?.[0]));
               let savedData = blockObj?.data;
               if (typeof savedData === 'string') {
                 try {
@@ -62,17 +77,18 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
               }
               iframeRef.current.contentWindow.postMessage({
                 type: 'LOAD_PREVIEW',
-                data: savedData || (isDiag ? { nodes: [], edges: [] } : { code: '', language: 'javascript' })
+                data: savedData || (isDiag ? { nodes: [], edges: [] } : (isJson ? {} : (isDataBridge ? {} : { code: '', language: 'javascript' })))
               }, '*');
             }
           } catch (err) {
-            console.error(`Failed to fetch preview data for ${isDiag ? 'archflow' : 'code-editor'}:`, err);
+            console.error(`Failed to fetch preview data for ${isDiag ? 'archflow' : (isJson ? 'json' : (isDataBridge ? 'data-bridge' : 'code-editor'))}:`, err);
           }
         }
         setLoading(false);
       } else if (e.data?.type === 'RESIZE_PREVIEW') {
         if (e.data.height) {
-          setIframeHeight(e.data.height);
+          const clamped = Math.min(800, Math.max(200, e.data.height));
+          setIframeHeight(clamped);
         }
       } else if (e.data?.type === 'RUN_CODE') {
         const { code, language, javaConfig, fileName } = e.data;
@@ -122,15 +138,15 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fileId, isDiag]);
+  }, [fileId, isDiag, isJson, isDataBridge]);
 
-  const pluginId = isDiag ? 'archflow' : 'code-editor';
+  const pluginId = isDiag ? 'archflow' : (isJson ? 'json' : (isDataBridge ? 'data-bridge' : 'code-editor'));
 
   return (
     <div className="doc-link-embed-container" contentEditable={false} style={{ position: 'relative', border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', margin: '8px 0', backgroundColor: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
       <div className="doc-link-embed-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F3F4F6' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <i className={isDiag ? "ri-bubble-chart-fill" : "ri-file-code-fill"} style={{ color: isDiag ? '#8B5CF6' : '#2563EB', fontSize: '16px' }}></i>
+          <i className={isDiag ? "ri-bubble-chart-fill" : (fileType === 'json' ? "ri-braces-fill" : (fileType === 'data-bridge' ? "ri-database-2-fill" : "ri-file-code-fill"))} style={{ color: isDiag ? '#8B5CF6' : (fileType === 'json' ? '#D97706' : (fileType === 'data-bridge' ? '#10B981' : '#2563EB')), fontSize: '16px' }}></i>
           <span style={{ fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>{title}</span>
           <span style={{ fontSize: '11px', color: '#6B7280', backgroundColor: '#E5E7EB', padding: '2px 6px', borderRadius: '4px' }}>Preview</span>
         </div>
@@ -152,10 +168,10 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
           </button>
         </div>
       </div>
-      <div style={{ position: 'relative', height: `${iframeHeight}px`, width: '100%', transition: 'height 0.2s ease' }}>
+      <div style={{ position: 'relative', height: `${iframeHeight}px`, maxHeight: '800px', minHeight: '200px', width: '100%', transition: 'height 0.2s ease' }}>
         <iframe
           ref={iframeRef}
-          title={isDiag ? "Diagram Editor Preview" : "Code Editor Preview"}
+          title={isDiag ? "Diagram Editor Preview" : (isJson ? "JSON Analyzer Preview" : (isDataBridge ? "Data Bridge Preview" : "Code Editor Preview"))}
           src={`devscribe-core-plugin://${pluginId}/#/?fileId=${fileId}&preview=true`}
           style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden' }}
           scrolling="no"
@@ -355,7 +371,7 @@ function AddDocBlockComponent({ block, editor }) {
   }, [fileId, fileType, block, editor]);
 
   // If a file is already linked, render a Notion-style file reference card or preview if it's an embeddable file and was embedded
-  const isEmbeddableType = actualFileType === 'code-editor' || actualFileType === 'archflow' || actualFileType === 'diagram';
+  const isEmbeddableType = actualFileType === 'code-editor' || actualFileType === 'archflow' || actualFileType === 'diagram' || actualFileType === 'json' || actualFileType === 'data-bridge';
   const resolvedEmbedMode = embedMode || (isEmbeddableType ? 'embed' : 'card');
   if (fileId) {
     if (isEmbeddableType && resolvedEmbedMode === 'embed') {
@@ -428,7 +444,7 @@ function AddDocBlockComponent({ block, editor }) {
                   >
                     Link
                   </button>
-                  {(f.fileType === 'code-editor' || f.fileType === 'archflow' || f.fileType === 'diagram') && (
+                  {(f.fileType === 'code-editor' || f.fileType === 'archflow' || f.fileType === 'diagram' || f.fileType === 'json' || f.fileType === 'data-bridge') && (
                     <button 
                       onClick={() => handleLinkExisting(f, 'embed')}
                       style={{ border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#FFFFFF', backgroundColor: '#4F46E5', cursor: 'pointer' }}
