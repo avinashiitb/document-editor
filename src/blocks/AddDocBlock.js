@@ -90,6 +90,11 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
           const clamped = Math.min(800, Math.max(200, e.data.height));
           setIframeHeight(clamped);
         }
+      } else if (e.data?.type === 'IFRAME_WHEEL') {
+        const scrollContainer = document.querySelector('.editor-container');
+        if (scrollContainer) {
+          scrollContainer.scrollBy({ top: e.data.deltaY, behavior: 'auto' });
+        }
       } else if (e.data?.type === 'RUN_CODE') {
         const { code, language, javaConfig, fileName } = e.data;
         let result;
