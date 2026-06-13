@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { createReactBlockSpec } from "@blocknote/react";
 import CodeMirror from '@uiw/react-codemirror';
+import { EditorView } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { loadLanguage } from '@uiw/codemirror-extensions-langs';
 import { dracula } from '@uiw/codemirror-theme-dracula';
@@ -85,7 +86,7 @@ function CustomCodeBlockComponent({ block, editor }) {
   };
 
   const currentLanguage = block.props.language || "javascript";
-  const extensions = [javascript({ jsx: true })];
+  const extensions = [javascript({ jsx: true }), EditorView.lineWrapping];
 
   if (currentLanguage !== "javascript" && currentLanguage !== "js") {
     try {
