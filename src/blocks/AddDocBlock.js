@@ -51,7 +51,8 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
   const isJson = fileType === 'json';
   const isDataBridge = fileType === 'data-bridge';
   const isProtocolX = fileType === 'protocol-x';
-  const rawDefaultHeight = isDiag ? 450 : (isJson ? 200 : (isDataBridge ? 450 : (isProtocolX ? 400 : 150)));
+  const isPromptly = fileType === 'promptly';
+  const rawDefaultHeight = isDiag ? 450 : (isJson ? 200 : (isDataBridge ? 450 : (isProtocolX ? 400 : (isPromptly ? 350 : 150))));
   const defaultHeight = Math.max(200, rawDefaultHeight);
   const [iframeHeight, setIframeHeight] = useState(defaultHeight);
 
@@ -71,7 +72,9 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
                     ? (document?.blocks?.find(b => b.type === "json-analyzer") || document?.blocks?.[0])
                     : (isDataBridge
                         ? (document?.blocks?.find(b => b.type === "data-bridge") || document?.blocks?.[0])
-                        : document?.blocks?.[0]));
+                        : (isPromptly
+                            ? (document?.blocks?.find(b => b.type === "promptly") || document?.blocks?.[0])
+                            : document?.blocks?.[0])));
               
               let savedData = isProtocolX ? blockObj : blockObj?.data;
               if (typeof savedData === 'string') {
@@ -165,15 +168,15 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fileId, isDiag, isJson, isDataBridge, isProtocolX]);
+  }, [fileId, isDiag, isJson, isDataBridge, isProtocolX, isPromptly]);
 
-  const pluginId = isDiag ? 'archflow' : (isJson ? 'json' : (isDataBridge ? 'data-bridge' : (isProtocolX ? 'protocol-x' : 'code-editor')));
+  const pluginId = isDiag ? 'archflow' : (isJson ? 'json' : (isDataBridge ? 'data-bridge' : (isProtocolX ? 'protocol-x' : (isPromptly ? 'promptly' : 'code-editor'))));
 
   return (
     <div className="doc-link-embed-container" contentEditable={false} style={{ position: 'relative', border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', margin: '8px 0', backgroundColor: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
       <div className="doc-link-embed-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F3F4F6' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <i className={isDiag ? "ri-bubble-chart-fill" : (fileType === 'json' ? "ri-braces-fill" : (fileType === 'data-bridge' ? "ri-database-2-fill" : (fileType === 'protocol-x' ? "ri-global-fill" : "ri-file-code-fill")))} style={{ color: isDiag ? '#8B5CF6' : (fileType === 'json' ? '#D97706' : (fileType === 'data-bridge' ? '#10B981' : (fileType === 'protocol-x' ? '#EF4444' : '#2563EB'))), fontSize: '16px' }}></i>
+          <i className={isDiag ? "ri-bubble-chart-fill" : (fileType === 'json' ? "ri-braces-fill" : (fileType === 'data-bridge' ? "ri-database-2-fill" : (fileType === 'protocol-x' ? "ri-global-fill" : (fileType === 'promptly' ? "ri-terminal-box-fill" : "ri-file-code-fill"))))} style={{ color: isDiag ? '#8B5CF6' : (fileType === 'json' ? '#D97706' : (fileType === 'data-bridge' ? '#10B981' : (fileType === 'protocol-x' ? '#EF4444' : (fileType === 'promptly' ? '#0969DA' : '#2563EB')))), fontSize: '16px' }}></i>
           <span style={{ fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>{title}</span>
           <span style={{ fontSize: '11px', color: '#6B7280', backgroundColor: '#E5E7EB', padding: '2px 6px', borderRadius: '4px' }}>Preview</span>
         </div>
@@ -195,10 +198,10 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
           </button>
         </div>
       </div>
-      <div style={{ position: 'relative', height: `${iframeHeight}px`, minHeight: '200px', width: '100%', transition: 'height 0.2s ease' }}>
+      <div style={{ position: 'relative', height: `${iframeHeight}px`, maxHeight: '800px', minHeight: '200px', width: '100%', transition: 'height 0.2s ease' }}>
         <iframe
           ref={iframeRef}
-          title={isDiag ? "Diagram Editor Preview" : (isJson ? "JSON Analyzer Preview" : (isDataBridge ? "Data Bridge Preview" : (fileType === 'protocol-x' ? "API Preview" : "Code Editor Preview")))}
+          title={isDiag ? "Diagram Editor Preview" : (isJson ? "JSON Analyzer Preview" : (isDataBridge ? "Data Bridge Preview" : (fileType === 'protocol-x' ? "API Preview" : (fileType === 'promptly' ? "Runbook Preview" : "Code Editor Preview"))))}
           src={`devscribe-core-plugin://${pluginId}/#/?fileId=${fileId}&preview=true&theme=${localStorage.getItem('document-editor-theme') || 'light'}`}
           style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden' }}
           scrolling="no"
@@ -398,7 +401,7 @@ function AddDocBlockComponent({ block, editor }) {
   }, [fileId, fileType, block, editor]);
 
   // If a file is already linked, render a Notion-style file reference card or preview if it's an embeddable file and was embedded
-  const isEmbeddableType = actualFileType === 'code-editor' || actualFileType === 'archflow' || actualFileType === 'diagram' || actualFileType === 'json' || actualFileType === 'data-bridge' || actualFileType === 'protocol-x';
+  const isEmbeddableType = actualFileType === 'code-editor' || actualFileType === 'archflow' || actualFileType === 'diagram' || actualFileType === 'json' || actualFileType === 'data-bridge' || actualFileType === 'protocol-x' || actualFileType === 'promptly';
   const resolvedEmbedMode = embedMode || (isEmbeddableType ? 'embed' : 'card');
   if (fileId) {
     if (isEmbeddableType && resolvedEmbedMode === 'embed') {
@@ -471,7 +474,7 @@ function AddDocBlockComponent({ block, editor }) {
                   >
                     Link
                   </button>
-                  {(f.fileType === 'code-editor' || f.fileType === 'archflow' || f.fileType === 'diagram' || f.fileType === 'json' || f.fileType === 'data-bridge' || f.fileType === 'protocol-x') && (
+                  {(f.fileType === 'code-editor' || f.fileType === 'archflow' || f.fileType === 'diagram' || f.fileType === 'json' || f.fileType === 'data-bridge' || f.fileType === 'protocol-x' || f.fileType === 'promptly') && (
                     <button 
                       onClick={() => handleLinkExisting(f, 'embed')}
                       style={{ border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#FFFFFF', backgroundColor: '#4F46E5', cursor: 'pointer' }}
