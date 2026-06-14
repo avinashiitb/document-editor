@@ -4,7 +4,7 @@ import { Extension, textInputRule } from "@tiptap/core";
 
 import { defaultBlockSpecs, BlockNoteSchema } from "@blocknote/core";
 import { SideMenuExtension } from "@blocknote/core/extensions";
-import { 
+import {
   useCreateBlockNote,
   getDefaultReactSlashMenuItems,
   SuggestionMenuController,
@@ -31,7 +31,7 @@ function detectContentType(content) {
   try {
     JSON.parse(content);
     return 'json';
-  } catch {}
+  } catch { }
 
   if (content.includes('<html') || content.includes('<div')) {
     return 'html';
@@ -231,7 +231,7 @@ function App() {
   const [contentDoc, setContentDoc] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
-  
+
   // Theme state persisted in localStorage
   const [theme] = useState(() => {
     return localStorage.getItem('document-editor-theme') || 'light';
@@ -257,7 +257,7 @@ function App() {
         const hashParams = new URLSearchParams(window.location.hash.split("?")[1]);
         id = hashParams.get("fileId");
       }
-    } catch (e) {}
+    } catch (e) { }
     return id;
   };
 
@@ -284,7 +284,7 @@ function App() {
                 ];
                 setBreadcrumbs(segs);
               }
-            }).catch(() => {});
+            }).catch(() => { });
           }
 
           console.log('Loading documents by parent file...');
@@ -342,11 +342,15 @@ function App() {
       },
       {
         type: "paragraph",
-        content: [{ type: "text", text: "This is your clean, distraction-free document editing workspace. It supports robust rich text, list nesting, media blocks, and code formatting.", styles: {} }]
+        content: [{ type: "text", text: "This is your distraction-free document editor. Here you can write rich text, nest lists, embed media, and format code—or simply paste Markdown or HTML content to import your files directly.", styles: {} }]
       },
       {
         type: "paragraph",
-        content: [{ type: "text", text: "Type '/' to see all block types and formatting commands.", styles: {} }]
+        content: [{ type: "text", text: "Type '/' to browse commands, formatting options, and block types.", styles: {} }]
+      },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Need to link external files? Type '/' and search 'link file' to embed Code documents, API specs, diagrams, or live terminals directly into your workspace.", styles: {} }]
       }
     ];
   };
@@ -385,17 +389,22 @@ function App() {
         const text = event.clipboardData?.getData("text/plain");
         if (!text) return defaultPasteHandler();
 
+        const hasHTML = event.clipboardData?.types.includes("text/html");
         const language = detectContentType(text);
-        console.log("Detected language type:", language);
+        console.log("Detected language type:", language, "hasHTML:", hasHTML);
+
+        if (hasHTML && language !== 'markdown') {
+          return defaultPasteHandler();
+        }
 
         if (language === 'html') {
           return defaultPasteHandler();
         }
 
-        if (language === 'markdown') {
+        if (language === 'markdown' || language === 'sql' || language === 'text') {
           const cursor = editor.getTextCursorPosition();
           const target = event.target;
-          const isInCode = cursor?.block?.type === 'codeBlock' || 
+          const isInCode = cursor?.block?.type === 'codeBlock' ||
             (target && typeof target.closest === 'function' && target.closest('pre, code, textarea, .bn-code-block, [data-content-type="codeBlock"]'));
 
           if (!isInCode) {
@@ -403,8 +412,8 @@ function App() {
               const blocks = sanitizeBlocks(editor.tryParseMarkdownToBlocks(text));
               const currentBlock = editor.getTextCursorPosition()?.block;
               const isBlockEmpty = currentBlock && (
-                !currentBlock.content || 
-                currentBlock.content.length === 0 || 
+                !currentBlock.content ||
+                currentBlock.content.length === 0 ||
                 (currentBlock.content.length === 1 && currentBlock.content[0].type === "text" && currentBlock.content[0].text === "")
               );
 
@@ -532,8 +541,8 @@ function App() {
       <div className="workspace">
         <main className="editor-container" id="blocknote-editor-wrapper">
           <div className="editor-paper">
-            <BlockNoteView 
-              editor={editor} 
+            <BlockNoteView
+              editor={editor}
               onChange={handleEditorChange}
               theme={theme}
               slashMenu={false}
@@ -543,7 +552,7 @@ function App() {
                 triggerCharacter={"/"}
                 getItems={async (query) => {
                   const items = [...getDefaultReactSlashMenuItems(editor), insertAddDocBlock(editor)];
-                  return items.filter(item => 
+                  return items.filter(item =>
                     item.title.toLowerCase().includes(query.toLowerCase()) ||
                     item.aliases?.some(alias => alias.toLowerCase().includes(query.toLowerCase()))
                   );
