@@ -4,7 +4,6 @@ import { createReactBlockSpec } from "@blocknote/react";
 // Helper to determine icon class based on file type for the configured card
 const getFileIconClass = (type) => {
   switch (type) {
-    case 'diagram':
     case 'archflow':
     case 'canvas':
       return 'ri-bubble-chart-fill';
@@ -25,7 +24,6 @@ const getFileIconClass = (type) => {
 // Helper to determine icon class based on file type for the selection list
 const getFileListIconClass = (type) => {
   switch (type) {
-    case 'diagram':
     case 'archflow':
     case 'canvas':
       return 'ri-bubble-chart-line';
@@ -44,71 +42,79 @@ const getFileListIconClass = (type) => {
 };
 
 // React Component for code preview embedding via iframe
-function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigate }) {
+function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigate, pluginMap = {} }) {
   const iframeRef = useRef(null);
   const [loading, setLoading] = useState(true);
-  const isDiag = fileType === 'archflow' || fileType === 'diagram';
+  const [refreshing, setRefreshing] = useState(false);
+  const [previewReady, setPreviewReady] = useState(false);
+  const isArchFlow = fileType === 'archflow';
   const isJson = fileType === 'json';
   const isDataBridge = fileType === 'data-bridge';
   const isProtocolX = fileType === 'protocol-x';
   const isPromptly = fileType === 'promptly';
-  const rawDefaultHeight = isDiag ? 450 : (isJson ? 200 : (isDataBridge ? 450 : (isProtocolX ? 400 : (isPromptly ? 350 : 150))));
+  const rawDefaultHeight = isArchFlow ? 450 : (isJson ? 200 : (isDataBridge ? 450 : (isProtocolX ? 400 : (isPromptly ? 350 : 150))));
   const defaultHeight = Math.max(200, rawDefaultHeight);
   const [iframeHeight, setIframeHeight] = useState(defaultHeight);
+
+  const loadPreviewData = useCallback(async () => {
+    if (!window.pluginAPI?.getDocumentsByParentFile) return;
+    try {
+      const data = await window.pluginAPI.getDocumentsByParentFile(fileId);
+      if (data && data.length > 0) {
+        const document = data[0];
+        const blockObj = isArchFlow
+          ? (document?.blocks?.find(b => b.type === "archflow") || document?.blocks?.[0])
+          : (isJson
+              ? (document?.blocks?.find(b => b.type === "json-analyzer") || document?.blocks?.[0])
+              : (isDataBridge
+                  ? (document?.blocks?.find(b => b.type === "data-bridge") || document?.blocks?.[0])
+                  : (isPromptly
+                      ? (document?.blocks?.find(b => b.type === "promptly") || document?.blocks?.[0])
+                      : document?.blocks?.[0])));
+        
+        let savedData = isProtocolX ? blockObj : blockObj?.data;
+        if (typeof savedData === 'string') {
+          try {
+            savedData = JSON.parse(savedData);
+          } catch (err) {
+            console.warn('Failed parsing raw block string in preview', err);
+          }
+        }
+
+        let envVariables = [];
+        if (isProtocolX) {
+          const envId = blockObj?.selectedEnv || "1";
+          try {
+            if (window.pluginAPI.fetchEnvByScopeId) {
+              envVariables = await window.pluginAPI.fetchEnvByScopeId(envId);
+            } else if (window.pluginAPI.messaging?.invoke) {
+              envVariables = await window.pluginAPI.messaging.invoke('fetch-env-by-scope-id', { scope_id: envId });
+            }
+          } catch (err) {
+            console.warn('Failed fetching env variables for protocol-x preview:', err);
+          }
+        }
+
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage({
+            type: 'LOAD_PREVIEW',
+            data: savedData || (isArchFlow ? { nodes: [], edges: [] } : (isJson ? {} : (isDataBridge ? {} : { code: '', language: 'javascript' }))),
+            envVariables: envVariables
+          }, '*');
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to fetch preview data for ${isArchFlow ? 'archflow' : (isJson ? 'json' : (isDataBridge ? 'data-bridge' : 'code-editor'))}:`, err);
+    }
+  }, [fileId, isArchFlow, isJson, isDataBridge, isProtocolX, isPromptly]);
 
   useEffect(() => {
     const handleMessage = async (e) => {
       if (!iframeRef.current || e.source !== iframeRef.current.contentWindow) return;
 
       if (e.data?.type === 'PREVIEW_READY') {
-        if (window.pluginAPI?.getDocumentsByParentFile) {
-          try {
-            const data = await window.pluginAPI.getDocumentsByParentFile(fileId);
-            if (data && data.length > 0) {
-              const document = data[0];
-              const blockObj = isDiag
-                ? (document?.blocks?.find(b => b.type === "archflow") || document?.blocks?.[0])
-                : (isJson
-                    ? (document?.blocks?.find(b => b.type === "json-analyzer") || document?.blocks?.[0])
-                    : (isDataBridge
-                        ? (document?.blocks?.find(b => b.type === "data-bridge") || document?.blocks?.[0])
-                        : (isPromptly
-                            ? (document?.blocks?.find(b => b.type === "promptly") || document?.blocks?.[0])
-                            : document?.blocks?.[0])));
-              
-              let savedData = isProtocolX ? blockObj : blockObj?.data;
-              if (typeof savedData === 'string') {
-                try {
-                  savedData = JSON.parse(savedData);
-                } catch (err) {
-                  console.warn('Failed parsing raw block string in preview', err);
-                }
-              }
-
-              let envVariables = [];
-              if (isProtocolX) {
-                const envId = blockObj?.selectedEnv || "1";
-                try {
-                  if (window.pluginAPI.fetchEnvByScopeId) {
-                    envVariables = await window.pluginAPI.fetchEnvByScopeId(envId);
-                  } else if (window.pluginAPI.messaging?.invoke) {
-                    envVariables = await window.pluginAPI.messaging.invoke('fetch-env-by-scope-id', { scope_id: envId });
-                  }
-                } catch (err) {
-                  console.warn('Failed fetching env variables for protocol-x preview:', err);
-                }
-              }
-
-              iframeRef.current.contentWindow.postMessage({
-                type: 'LOAD_PREVIEW',
-                data: savedData || (isDiag ? { nodes: [], edges: [] } : (isJson ? {} : (isDataBridge ? {} : { code: '', language: 'javascript' }))),
-                envVariables: envVariables
-              }, '*');
-            }
-          } catch (err) {
-            console.error(`Failed to fetch preview data for ${isDiag ? 'archflow' : (isJson ? 'json' : (isDataBridge ? 'data-bridge' : 'code-editor'))}:`, err);
-          }
-        }
+        setPreviewReady(true);
+        await loadPreviewData();
         setLoading(false);
       } else if (e.data?.type === 'RESIZE_PREVIEW') {
         if (e.data.height) {
@@ -168,19 +174,57 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [fileId, isDiag, isJson, isDataBridge, isProtocolX, isPromptly]);
+  }, [fileId, isArchFlow, isJson, isDataBridge, isProtocolX, isPromptly, loadPreviewData]);
 
-  const pluginId = isDiag ? 'archflow' : (isJson ? 'json' : (isDataBridge ? 'data-bridge' : (isProtocolX ? 'protocol-x' : (isPromptly ? 'promptly' : 'code-editor'))));
+  // Dynamic automatic reload when window (webview) receives focus
+  useEffect(() => {
+    if (!previewReady) return;
+    const handleFocus = () => {
+      loadPreviewData();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [previewReady, loadPreviewData]);
+
+  // Periodic polling check every 4 seconds only if document editor is currently active/visible to the user
+  useEffect(() => {
+    if (!previewReady) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadPreviewData();
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [previewReady, loadPreviewData]);
+
+  const pluginInfo = pluginMap[fileType];
+  const isCore = !pluginInfo || !!(pluginInfo['core-plugin'] === true || pluginInfo['core-plugin'] === 'true' || pluginInfo.isCore);
+  const pluginId = pluginInfo ? pluginInfo.id : fileType;
+  const scheme = isCore ? 'devscribe-core-plugin' : 'devscribe-plugin';
 
   return (
     <div className="doc-link-embed-container" contentEditable={false} style={{ position: 'relative', border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', margin: '8px 0', backgroundColor: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
       <div className="doc-link-embed-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F3F4F6' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <i className={isDiag ? "ri-bubble-chart-fill" : (fileType === 'json' ? "ri-braces-fill" : (fileType === 'data-bridge' ? "ri-database-2-fill" : (fileType === 'protocol-x' ? "ri-global-fill" : (fileType === 'promptly' ? "ri-terminal-box-fill" : "ri-file-code-fill"))))} style={{ color: isDiag ? '#8B5CF6' : (fileType === 'json' ? '#D97706' : (fileType === 'data-bridge' ? '#10B981' : (fileType === 'protocol-x' ? '#EF4444' : (fileType === 'promptly' ? '#0969DA' : '#2563EB')))), fontSize: '16px' }}></i>
+          <i className={isArchFlow ? "ri-bubble-chart-fill" : (fileType === 'json' ? "ri-braces-fill" : (fileType === 'data-bridge' ? "ri-database-2-fill" : (fileType === 'protocol-x' ? "ri-global-fill" : (fileType === 'promptly' ? "ri-terminal-box-fill" : "ri-file-code-fill"))))} style={{ color: isArchFlow ? '#8B5CF6' : (fileType === 'json' ? '#D97706' : (fileType === 'data-bridge' ? '#10B981' : (fileType === 'protocol-x' ? '#EF4444' : (fileType === 'promptly' ? '#0969DA' : '#2563EB')))), fontSize: '16px' }}></i>
           <span style={{ fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>{title}</span>
           <span style={{ fontSize: '11px', color: '#6B7280', backgroundColor: '#E5E7EB', padding: '2px 6px', borderRadius: '4px' }}>Preview</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button 
+            onClick={async (e) => { 
+              e.stopPropagation(); 
+              setRefreshing(true); 
+              await loadPreviewData(); 
+              setRefreshing(false); 
+            }}
+            disabled={loading || refreshing}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '2px 8px', fontSize: '12px', color: '#374151', backgroundColor: '#FFFFFF', cursor: previewReady ? 'pointer' : 'default', opacity: previewReady ? 1 : 0.6 }}
+            title="Refresh preview content"
+          >
+            <i className={`ri-refresh-line ${(loading || refreshing) ? 'ri-spin' : ''}`}></i>
+            Refresh
+          </button>
           <button 
             onClick={(e) => { e.stopPropagation(); handleNavigate(); }}
             style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '2px 8px', fontSize: '12px', color: '#374151', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
@@ -201,8 +245,8 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
       <div style={{ position: 'relative', height: `${iframeHeight}px`, maxHeight: '800px', minHeight: '200px', width: '100%', transition: 'height 0.2s ease' }}>
         <iframe
           ref={iframeRef}
-          title={isDiag ? "Diagram Editor Preview" : (isJson ? "JSON Analyzer Preview" : (isDataBridge ? "Data Bridge Preview" : (fileType === 'protocol-x' ? "API Preview" : (fileType === 'promptly' ? "Runbook Preview" : "Code Editor Preview"))))}
-          src={`devscribe-core-plugin://${pluginId}/#/?fileId=${fileId}&preview=true&theme=${localStorage.getItem('document-editor-theme') || 'light'}`}
+          title={isArchFlow ? "Diagram Editor Preview" : (isJson ? "JSON Analyzer Preview" : (isDataBridge ? "Data Bridge Preview" : (fileType === 'protocol-x' ? "API Preview" : (fileType === 'promptly' ? "Runbook Preview" : "Code Editor Preview"))))}
+          src={`${scheme}://${pluginId}/#/?fileId=${fileId}&preview=true&theme=${localStorage.getItem('document-editor-theme') || 'light'}`}
           style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden' }}
           scrolling="no"
         />
@@ -217,12 +261,16 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
   );
 }
 
+
+
 // 1. React Component for custom "Add/Link Document" block
 function AddDocBlockComponent({ block, editor }) {
   const { fileId, title, fileType, embedMode } = block.props;
   const [searchQuery, setSearchQuery] = useState("");
   const [allFiles, setAllFiles] = useState([]);
   const [folders, setFolders] = useState([]);
+  const [pluginMap, setPluginMap] = useState({});
+  const [embeddableTypes, setEmbeddableTypes] = useState([]);
 
   // Fetch folders hierarchy
   useEffect(() => {
@@ -289,6 +337,51 @@ function AddDocBlockComponent({ block, editor }) {
         .catch(err => console.error("Failed to fetch files for linking:", err));
     }
   }, [currentFileId]);
+
+  // Load dynamic embeddable types and metadata from registered plugins
+  useEffect(() => {
+    const loadEmbeddableTypes = async () => {
+      try {
+        const pMap = {};
+        if (window.pluginAPI?.getPlugins) {
+          const plugins = await window.pluginAPI.getPlugins();
+          (plugins || []).forEach(p => {
+            if (p.preview === true || p.preview === "true") {
+              pMap[p.fileType] = { ...p, isCore: false };
+            }
+          });
+        }
+        if (window.pluginAPI?.getCorePlugins) {
+          const corePlugins = await window.pluginAPI.getCorePlugins();
+          (corePlugins || []).forEach(p => {
+            if (p.preview === true || p.preview === "true") {
+              pMap[p.fileType] = { ...p, isCore: true };
+            }
+          });
+        }
+
+        setPluginMap(pMap);
+
+        const types = Object.keys(pMap);
+        if (types.length > 0) {
+          setEmbeddableTypes(types);
+        }
+      } catch (err) {
+        console.warn("Failed resolving preview support dynamically:", err);
+      }
+    };
+
+    loadEmbeddableTypes();
+  }, []);
+
+  const DEFAULT_EMBEDDABLE_TYPES = ['code-editor', 'archflow', 'json', 'data-bridge', 'protocol-x', 'promptly'];
+
+  const isEmbeddable = (type) => {
+    if (embeddableTypes.length > 0) {
+      return embeddableTypes.includes(type);
+    }
+    return DEFAULT_EMBEDDABLE_TYPES.includes(type);
+  };
 
   const handleLinkExisting = (selectedFile, linkMode = 'card') => {
     editor.updateBlock(block, {
@@ -372,7 +465,7 @@ function AddDocBlockComponent({ block, editor }) {
                 resolvedType = 'code-editor';
               } else if (firstBlock.type === 'promptly') {
                 resolvedType = 'promptly';
-              } else if (firstBlock.type === 'diagram' || firstBlock.type === 'archflow') {
+              } else if (firstBlock.type === 'archflow') {
                 resolvedType = 'archflow';
               }
 
@@ -401,7 +494,7 @@ function AddDocBlockComponent({ block, editor }) {
   }, [fileId, fileType, block, editor]);
 
   // If a file is already linked, render a Notion-style file reference card or preview if it's an embeddable file and was embedded
-  const isEmbeddableType = actualFileType === 'code-editor' || actualFileType === 'archflow' || actualFileType === 'diagram' || actualFileType === 'json' || actualFileType === 'data-bridge' || actualFileType === 'protocol-x' || actualFileType === 'promptly';
+  const isEmbeddableType = isEmbeddable(actualFileType);
   const resolvedEmbedMode = embedMode || (isEmbeddableType ? 'embed' : 'card');
   if (fileId) {
     if (isEmbeddableType && resolvedEmbedMode === 'embed') {
@@ -412,6 +505,7 @@ function AddDocBlockComponent({ block, editor }) {
           fileType={actualFileType}
           handleUnlink={handleUnlink}
           handleNavigate={handleNavigate}
+          pluginMap={pluginMap}
         />
       );
     }
@@ -474,7 +568,7 @@ function AddDocBlockComponent({ block, editor }) {
                   >
                     Link
                   </button>
-                  {(f.fileType === 'code-editor' || f.fileType === 'archflow' || f.fileType === 'diagram' || f.fileType === 'json' || f.fileType === 'data-bridge' || f.fileType === 'protocol-x' || f.fileType === 'promptly') && (
+                  {isEmbeddable(f.fileType) && (
                     <button 
                       onClick={() => handleLinkExisting(f, 'embed')}
                       style={{ border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#FFFFFF', backgroundColor: '#4F46E5', cursor: 'pointer' }}
