@@ -1,10 +1,11 @@
 {
   "id": "document-editor",
-  "name": "Document Editor",
+  "name": "Document",
   "version": "1.0.0",
   "description": "A beautiful, rich-text collaborative document editor plugin powered by BlockNote.",
   "fileType": "document-editor",
   "route": "/document-editor/:file_id",
   "entry": "/build/index.html",
-  "icon": "build/Icons.svg"
+  "icon": "build/Icons.svg",
+  "color": "green"
 }
