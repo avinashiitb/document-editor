@@ -25,6 +25,39 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Document Editor</title>
+    <script>
+      (function() {
+        try {
+          const url = new URL(window.location.href);
+          let theme = url.searchParams.get("theme");
+          if (!theme && window.location.hash.includes("?")) {
+            const hashParams = new URLSearchParams(window.location.hash.split("?")[1]);
+            theme = hashParams.get("theme");
+          }
+          if (theme === "dark" || theme === "light") {
+            document.documentElement.setAttribute("data-theme", theme);
+            document.documentElement.classList.add(theme + "-theme");
+          } else {
+            const saved = localStorage.getItem('document-editor-theme');
+            if (saved === "dark" || saved === "light") {
+              document.documentElement.setAttribute("data-theme", saved);
+              document.documentElement.classList.add(saved + "-theme");
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      html, body {
+        background-color: #FAFBFB;
+      }
+      html[data-theme="dark"], html.dark-theme, body.dark-theme {
+        background-color: #121212 !important;
+      }
+      html[data-theme="light"], html.light-theme, body.light-theme {
+        background-color: #FAFBFB !important;
+      }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">

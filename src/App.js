@@ -232,14 +232,59 @@ function App() {
   const [isReady, setIsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
 
+  const getThemeFromUrl = () => {
+    try {
+      const url = new URL(window.location.href);
+      let t = url.searchParams.get("theme");
+      if (!t && window.location.hash.includes("?")) {
+        t = new URLSearchParams(window.location.hash.split("?")[1]).get("theme");
+      }
+      return t;
+    } catch (e) {
+      return null;
+    }
+  };
+
   // Theme state persisted in localStorage
-  const [theme] = useState(() => {
+  const [theme, setTheme] = useState(() => {
+    const urlTheme = getThemeFromUrl();
+    if (urlTheme === "dark" || urlTheme === "light") return urlTheme;
+    const preloadTheme = window.pluginAPI?.context?.theme;
+    if (preloadTheme === "dark" || preloadTheme === "light") return preloadTheme;
     return localStorage.getItem('document-editor-theme') || 'light';
   });
 
   useEffect(() => {
     localStorage.setItem('document-editor-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.className = theme + '-theme';
   }, [theme]);
+
+  // Listen for runtime theme changes via window.postMessage
+  useEffect(() => {
+    const handleMessage = ({ data }) => {
+      if (data && data.type === 'theme-changed') {
+        if (data.theme === 'dark' || data.theme === 'light') {
+          setTheme(data.theme);
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Sync theme when URL updates
+  useEffect(() => {
+    const handleHashChange = () => {
+      const urlTheme = getThemeFromUrl();
+      if (urlTheme === "dark" || urlTheme === "light") {
+        setTheme(urlTheme);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    handleHashChange();
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
 
 

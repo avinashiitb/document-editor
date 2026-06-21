@@ -42,7 +42,7 @@ const getFileListIconClass = (type) => {
 };
 
 // React Component for code preview embedding via iframe
-function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigate, pluginMap = {} }) {
+function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigate, pluginMap = {}, theme }) {
   const iframeRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -203,12 +203,12 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
   const scheme = isCore ? 'devscribe-core-plugin' : 'devscribe-plugin';
 
   return (
-    <div className="doc-link-embed-container" contentEditable={false} style={{ position: 'relative', border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', margin: '8px 0', backgroundColor: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
-      <div className="doc-link-embed-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F3F4F6' }}>
+    <div className="doc-link-embed-container" contentEditable={false} style={{ position: 'relative', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', margin: '8px 0', backgroundColor: 'var(--card)', width: '100%', boxSizing: 'border-box' }}>
+      <div className="doc-link-embed-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border)', backgroundColor: 'var(--inner)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <i className={isArchFlow ? "ri-bubble-chart-fill" : (fileType === 'json' ? "ri-braces-fill" : (fileType === 'data-bridge' ? "ri-database-2-fill" : (fileType === 'protocol-x' ? "ri-global-fill" : (fileType === 'promptly' ? "ri-terminal-box-fill" : "ri-file-code-fill"))))} style={{ color: isArchFlow ? '#8B5CF6' : (fileType === 'json' ? '#D97706' : (fileType === 'data-bridge' ? '#10B981' : (fileType === 'protocol-x' ? '#EF4444' : (fileType === 'promptly' ? '#0969DA' : '#2563EB')))), fontSize: '16px' }}></i>
-          <span style={{ fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>{title}</span>
-          <span style={{ fontSize: '11px', color: '#6B7280', backgroundColor: '#E5E7EB', padding: '2px 6px', borderRadius: '4px' }}>Preview</span>
+          <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>{title}</span>
+          <span style={{ fontSize: '11px', color: 'var(--dim)', backgroundColor: 'var(--border-strong)', padding: '2px 6px', borderRadius: '4px' }}>Preview</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button 
@@ -219,7 +219,7 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
               setRefreshing(false); 
             }}
             disabled={loading || refreshing}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '2px 8px', fontSize: '12px', color: '#374151', backgroundColor: '#FFFFFF', cursor: previewReady ? 'pointer' : 'default', opacity: previewReady ? 1 : 0.6 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid var(--border-strong)', borderRadius: '4px', padding: '2px 8px', fontSize: '12px', color: 'var(--text)', backgroundColor: 'var(--card)', cursor: previewReady ? 'pointer' : 'default', opacity: previewReady ? 1 : 0.6 }}
             title="Refresh preview content"
           >
             <i className={`ri-refresh-line ${(loading || refreshing) ? 'ri-spin' : ''}`}></i>
@@ -227,7 +227,7 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); handleNavigate(); }}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '2px 8px', fontSize: '12px', color: '#374151', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid var(--border-strong)', borderRadius: '4px', padding: '2px 8px', fontSize: '12px', color: 'var(--text)', backgroundColor: 'var(--card)', cursor: 'pointer' }}
             title="Open full page"
           >
             <i className="ri-external-link-line"></i>
@@ -235,7 +235,7 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); handleUnlink(e); }}
-            style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: '#9CA3AF' }}
+            style={{ border: 'none', background: 'none', padding: '4px', cursor: 'pointer', color: 'var(--faint)' }}
             title="Unlink file"
           >
             <i className="ri-close-line" style={{ fontSize: '16px' }}></i>
@@ -244,14 +244,15 @@ function CodePreviewEmbed({ fileId, title, fileType, handleUnlink, handleNavigat
       </div>
       <div style={{ position: 'relative', height: `${iframeHeight}px`, maxHeight: '800px', minHeight: '200px', width: '100%', transition: 'height 0.2s ease' }}>
         <iframe
+          key={`${fileId}-${theme}`}
           ref={iframeRef}
           title={isArchFlow ? "Diagram Editor Preview" : (isJson ? "JSON Analyzer Preview" : (isDataBridge ? "Data Bridge Preview" : (fileType === 'protocol-x' ? "API Preview" : (fileType === 'promptly' ? "Runbook Preview" : "Code Editor Preview"))))}
-          src={`${scheme}://${pluginId}/#/?fileId=${fileId}&preview=true&theme=${localStorage.getItem('document-editor-theme') || 'light'}`}
+          src={`${scheme}://${pluginId}/#/?fileId=${fileId}&preview=true&theme=${theme}`}
           style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden' }}
           scrolling="no"
         />
         {loading && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', color: '#6B7280', fontSize: '13px', gap: '8px' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--card)', color: 'var(--dim)', fontSize: '13px', gap: '8px' }}>
             <i className="ri-loader-4-line ri-spin" style={{ fontSize: '18px' }}></i>
             Loading preview...
           </div>
@@ -271,6 +272,49 @@ function AddDocBlockComponent({ block, editor }) {
   const [folders, setFolders] = useState([]);
   const [pluginMap, setPluginMap] = useState({});
   const [embeddableTypes, setEmbeddableTypes] = useState([]);
+
+  const getThemeFromUrl = () => {
+    try {
+      const url = new URL(window.location.href);
+      let t = url.searchParams.get("theme");
+      if (!t && window.location.hash.includes("?")) {
+        t = new URLSearchParams(window.location.hash.split("?")[1]).get("theme");
+      }
+      return t;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const [theme, setTheme] = useState(() => {
+    const urlTheme = getThemeFromUrl();
+    if (urlTheme === "dark" || urlTheme === "light") return urlTheme;
+    return localStorage.getItem('document-editor-theme') || 'light';
+  });
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const urlTheme = getThemeFromUrl();
+      if (urlTheme === "dark" || urlTheme === "light") {
+        setTheme(urlTheme);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  // Listen for runtime theme changes via window.postMessage
+  useEffect(() => {
+    const handleMessage = ({ data }) => {
+      if (data && data.type === 'theme-changed') {
+        if (data.theme === 'dark' || data.theme === 'light') {
+          setTheme(data.theme);
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   // Fetch folders hierarchy
   useEffect(() => {
@@ -506,6 +550,7 @@ function AddDocBlockComponent({ block, editor }) {
           handleUnlink={handleUnlink}
           handleNavigate={handleNavigate}
           pluginMap={pluginMap}
+          theme={theme}
         />
       );
     }
@@ -545,17 +590,17 @@ function AddDocBlockComponent({ block, editor }) {
               <div
                 key={f._id}
                 className="add-doc-block-list-item"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '6px', borderBottom: '1px solid #F3F4F6' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '6px', borderBottom: '1px solid var(--border)' }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', flex: 1, marginRight: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <i className={getFileListIconClass(f.fileType)} style={{ color: '#9CA3AF', fontSize: '14px' }}></i>
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#374151', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                    <i className={getFileListIconClass(f.fileType)} style={{ color: 'var(--faint)', fontSize: '14px' }}></i>
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                       {f.title || 'Untitled'}
                     </span>
                   </div>
                   {getFullPath(f.folderId) && (
-                    <span style={{ fontSize: '11px', color: '#9CA3AF', marginLeft: '22px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--dim)', marginLeft: '22px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                       {getFullPath(f.folderId)}
                     </span>
                   )}
@@ -564,14 +609,14 @@ function AddDocBlockComponent({ block, editor }) {
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                   <button 
                     onClick={() => handleLinkExisting(f, 'card')}
-                    style={{ border: '1px solid #D1D5DB', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#374151', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
+                    style={{ border: '1px solid var(--border-strong)', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: 'var(--text)', backgroundColor: 'var(--card)', cursor: 'pointer' }}
                   >
                     Link
                   </button>
                   {isEmbeddable(f.fileType) && (
                     <button 
                       onClick={() => handleLinkExisting(f, 'embed')}
-                      style={{ border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#FFFFFF', backgroundColor: '#4F46E5', cursor: 'pointer' }}
+                      style={{ border: 'none', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', fontWeight: 600, color: '#FFFFFF', backgroundColor: 'var(--accent)', cursor: 'pointer' }}
                     >
                       Embed
                     </button>

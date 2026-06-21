@@ -1,3 +1,42 @@
+/* Global Theme Variables Mapping */
+.App.document-editor-app.light-theme {
+  --bg: #ffffff;
+  --sidebar: #f8f9fa;
+  --header: #f8f9fa;
+  --card: #ffffff;
+  --card-hover: #f3f4f6;
+  --inner: #f9fafb;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --text: #111827;
+  --dim: #4b5563;
+  --faint: #9ca3af;
+  --accent: #3D6FE0;
+  --accent-soft: rgba(61, 111, 224, 0.15);
+  --accent-faint: rgba(61, 111, 224, 0.08);
+}
+
+.App.document-editor-app.dark-theme {
+  --bg: #1f1f1f;
+  --sidebar: #1a1a1a;
+  --header: #1d1d1d;
+  --card: #2a2a2a;
+  --card-hover: #323232;
+  --inner: #262626;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.13);
+  --text: #ededed;
+  --dim: #9a9a9a;
+  --faint: #6a6a6a;
+  --accent: color-mix(in oklab, #3D6FE0 88%, #ffffff);
+  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+  --accent-faint: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.export-icon {
+  color: var(--accent) !important;
+}
+
 /* Global Document Editor Layout */
 .App.document-editor-app {
   width: 100vw;
@@ -12,7 +51,6 @@
   color: #1F2937;
 }
 
-/* Loading Layout */
 .editor-loading {
   display: flex;
   flex-direction: column;
@@ -28,6 +66,13 @@
   gap: 12px;
 }
 
+/* Loading Layout - Dark Mode Override to prevent white flash/flicker */
+html[data-theme="dark"] .editor-loading,
+.dark-theme .editor-loading {
+  background-color: #121212;
+  color: #818CF8;
+}
+
 .loading-icon {
   font-size: 32px;
 }
@@ -37,7 +82,7 @@
   display: flex;
   height: 40px;
   padding: 0 16px 0 20px;
-  background-color: #F8F9FA;
+  background-color: #ffffff;
   border-bottom: 1px solid #E5E7EB;
   align-items: center;
   justify-content: space-between;
@@ -412,7 +457,7 @@
 }
 
 .dark-theme .editor-paper {
-  background-color: #1A1A1A !important;
+  background-color: #1f1f1f !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
   color: #E5E7EB !important;
 }

@@ -7,5 +7,6 @@
   "route": "/document-editor/:file_id",
   "entry": "/build/index.html",
   "icon": "build/Icons.svg",
+  "iconDark": "build/Icons-light.svg",
   "color": "green"
 }

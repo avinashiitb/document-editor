@@ -11,3 +11,13 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Avoid initial white background flash in dark mode (FOUC prevention) */
+html[data-theme="dark"], html.dark-theme, body.dark-theme {
+  background-color: #121212 !important;
+  color: #ededed;
+}
+html[data-theme="light"], html.light-theme, body.light-theme {
+  background-color: #FAFBFB !important;
+  color: #161b24;
+}

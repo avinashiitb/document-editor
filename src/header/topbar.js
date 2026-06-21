@@ -104,30 +104,27 @@ function TopBar({
               {!seg.isFile && (
                 <>
                   <span
+                    className="breadcrumb-folder"
                     style={{
                       whiteSpace: 'nowrap',
                       display: 'inline-flex',
                       alignItems: 'center',
                       fontSize: 12,
                       fontWeight: 500,
-                      color: '#9ca3af',
-                      cursor: 'default',
                     }}
                     title={seg.label}
                   >
                     {seg.label}
                   </span>
-                  <span style={{ color: '#9ca3af', opacity: 0.5, margin: '0 4px', fontSize: 13, userSelect: 'none' }}>›</span>
+                  <span className="breadcrumb-chevron" style={{ userSelect: 'none' }}>›</span>
                 </>
               )}
               {seg.isFile && (
                 <span
+                  className="breadcrumb-file"
                   style={{
                     whiteSpace: 'nowrap',
                     fontSize: 13,
-                    fontWeight: 600,
-                    color: '#111827',
-                    cursor: 'default',
                   }}
                   title={seg.label}
                 >
@@ -170,14 +167,14 @@ function TopBar({
             title="Export options"
             id="options-menu-trigger"
           >
-            <i className="ri-download-2-line" style={{ color: "#4F46E5" }}></i>
+            <i className="ri-upload-2-line export-icon"></i>
           </button>
 
           {isMenuOpen && (
             <div className="options-dropdown-menu">
               <div style={{ padding: "4px 0" }}>
                 <div className="menu-section-header">Export document</div>
-                
+
                 <button
                   className="menu-item-light"
                   id="export-ds-btn"
