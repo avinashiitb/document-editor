@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
-import { Extension, textInputRule } from "@tiptap/core";
+import { Extension, textInputRule, InputRule } from "@tiptap/core";
 
 import { defaultBlockSpecs, BlockNoteSchema } from "@blocknote/core";
 import { SideMenuExtension } from "@blocknote/core/extensions";
@@ -54,10 +54,34 @@ function detectContentType(content) {
   return 'text';
 }
 
+const editorContainer = { instance: null };
+
 const SymbolConversionExtension = Extension.create({
   name: "symbolConversion",
   addInputRules() {
     return [
+      new InputRule({
+        find: /^\s*(?:`{3})([a-zA-Z0-9+#-]*)\s$/,
+        handler: ({ state, range, match }) => {
+          const editor = editorContainer.instance;
+          if (editor) {
+            const currentBlock = editor.getTextCursorPosition()?.block;
+            if (currentBlock && currentBlock.type === "paragraph") {
+              setTimeout(() => {
+                editor.updateBlock(currentBlock.id, {
+                  type: "codeBlock",
+                  props: {
+                    language: match[1] || "javascript",
+                    code: "",
+                  },
+                });
+              }, 0);
+              return state.tr.delete(range.from, range.to);
+            }
+          }
+          return null;
+        },
+      }),
       textInputRule({
         find: /->$/,
         replace: "→",
@@ -485,6 +509,13 @@ function App() {
     },
     [initialContent !== null]
   );
+
+  useEffect(() => {
+    editorContainer.instance = editor;
+    return () => {
+      editorContainer.instance = null;
+    };
+  }, [editor]);
 
   // Sync / Save callback
   const handleSave = useCallback(async (blocksToSave, showNotification = false) => {

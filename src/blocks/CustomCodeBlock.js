@@ -51,6 +51,14 @@ function CustomCodeBlockComponent({ block, editor }) {
 
   const handleCreateEditor = (view) => {
     editorRef.current = view;
+    if (block.props.code === "") {
+      const cursor = editor.getTextCursorPosition();
+      if (cursor && cursor.block.id === block.id) {
+        setTimeout(() => {
+          view.focus();
+        }, 50);
+      }
+    }
   };
 
   const handleKeyDown = (e) => {
