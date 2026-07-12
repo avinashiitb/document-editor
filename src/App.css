@@ -282,6 +282,13 @@ html[data-theme="dark"] .editor-loading,
   line-height: 1.6 !important;
 }
 
+/* Make font size and font weight slightly more for paragraph blocks to improve legibility on larger screens */
+.bn-editor [data-content-type="paragraph"] {
+  font-size: 15px !important;
+  font-weight: 500 !important;
+}
+
+
 .light-theme .bn-editor {
   color: #2D3748;
 }

@@ -10,7 +10,11 @@ function TopBar({
   saveStatus,
   editor,
   contentDoc,
-  fileId
+  fileId,
+  zoomLevel,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -160,6 +164,41 @@ function TopBar({
       </div>
 
       <div className="topbar-right" style={{ gap: '6px' }}>
+        <div className="zoom-controls" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: '6px' }}>
+          <button
+            onClick={onZoomOut}
+            className="export-icon-btn"
+            title="Zoom Out"
+            style={{ width: '30px', height: '30px', fontSize: '14px' }}
+          >
+            <i className="ri-zoom-out-line"></i>
+          </button>
+          <button
+            onClick={onZoomReset}
+            className="options-dropdown-btn"
+            title="Reset Zoom to 100%"
+            style={{ 
+              padding: '0 8px', 
+              fontSize: '12px', 
+              height: '30px', 
+              minWidth: '50px', 
+              justifyContent: 'center',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            {zoomLevel}%
+          </button>
+          <button
+            onClick={onZoomIn}
+            className="export-icon-btn"
+            title="Zoom In"
+            style={{ width: '30px', height: '30px', fontSize: '14px' }}
+          >
+            <i className="ri-zoom-in-line"></i>
+          </button>
+        </div>
+
         <div style={{ position: "relative" }} ref={menuRef}>
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}

@@ -255,6 +255,19 @@ function App() {
   const [contentDoc, setContentDoc] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
+  const [zoomLevel, setZoomLevel] = useState(100);
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 10, 200));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 10, 50));
+  };
+
+  const handleZoomReset = () => {
+    setZoomLevel(100);
+  };
 
   const getThemeFromUrl = () => {
     try {
@@ -612,11 +625,15 @@ function App() {
         editor={editor}
         contentDoc={contentDoc}
         fileId={fileId}
+        zoomLevel={zoomLevel}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onZoomReset={handleZoomReset}
       />
 
       <div className="workspace">
         <main className="editor-container" id="blocknote-editor-wrapper">
-          <div className="editor-paper">
+          <div className="editor-paper" style={{ zoom: `${zoomLevel}%` }}>
             <BlockNoteView
               editor={editor}
               onChange={handleEditorChange}
