@@ -24,6 +24,7 @@ import "@blocknote/core/fonts/inter.css";
 
 import { AddDocBlock, insertAddDocBlock } from './blocks/AddDocBlock';
 import { CustomCodeBlock } from './blocks/CustomCodeBlock';
+import { ColumnList, Column, getColumnSlashMenuItems } from './blocks/ColumnBlock';
 import { sanitizeBlocks } from './utils/editorUtils';
 import TopBar from './header/topbar';
 
@@ -245,6 +246,8 @@ const schema = BlockNoteSchema.create({
     ...restDefaultBlockSpecs,
     addDoc: AddDocBlock(),
     codeBlock: CustomCodeBlock(),
+    column_list: ColumnList(),
+    column: Column(),
   },
 });
 
@@ -644,7 +647,11 @@ function App() {
               <SuggestionMenuController
                 triggerCharacter={"/"}
                 getItems={async (query) => {
-                  const items = [...getDefaultReactSlashMenuItems(editor), insertAddDocBlock(editor)];
+                  const items = [
+                    ...getDefaultReactSlashMenuItems(editor),
+                    ...getColumnSlashMenuItems(editor),
+                    insertAddDocBlock(editor)
+                  ];
                   return items.filter(item =>
                     item.title.toLowerCase().includes(query.toLowerCase()) ||
                     item.aliases?.some(alias => alias.toLowerCase().includes(query.toLowerCase()))

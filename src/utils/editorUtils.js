@@ -66,6 +66,8 @@ export const sanitizeBlocks = (blocks) => {
           rows: []
         };
       }
+    } else if (sanitized.type === 'column_list' || sanitized.type === 'column') {
+      sanitized.content = undefined;
     } else {
       // Convert string content to standard InlineContent[]
       if (typeof sanitized.content === 'string') {

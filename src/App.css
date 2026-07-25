@@ -1049,4 +1049,144 @@ pre code {
   box-sizing: border-box;
 }
 
+/* ==========================================
+   MULTI-COLUMN LAYOUT STYLING (BlockNote)
+   ========================================== */
+
+/* 1. Hide empty react-renderer content wrappers ONLY for column_list and column */
+.react-renderer.node-column_list,
+.react-renderer.node-column,
+.bn-block-content[data-content-type="column_list"],
+.bn-block-content[data-content-type="column"] {
+  display: none !important;
+}
+
+/* 2. Target ONLY the immediate .bn-block-group sibling of react-renderer node-column_list to layout columns HORIZONTALLY */
+.react-renderer.node-column_list + .bn-block-group,
+.react-renderer.node-column_list ~ .bn-block-group,
+.react-renderer.node-column_list + [data-node-type="blockGroup"],
+.react-renderer.node-column_list ~ [data-node-type="blockGroup"],
+.bn-block[data-node-type="blockContainer"]:has(> .react-renderer.node-column_list) > .bn-block-group,
+.bn-block-outer:has(> .bn-block > .react-renderer.node-column_list) > .bn-block-group {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 24px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  align-items: stretch !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  border-left: none !important;
+}
+
+/* Strip nesting/depth lines ONLY on BlockNote block containers and their ::before pseudo elements */
+.react-renderer.node-column_list ~ .bn-block-group,
+.react-renderer.node-column_list ~ .bn-block-group .bn-block-outer,
+.react-renderer.node-column ~ .bn-block-group,
+.react-renderer.node-column ~ .bn-block-group .bn-block-outer {
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.react-renderer.node-column_list ~ .bn-block-group::before,
+.react-renderer.node-column_list ~ .bn-block-group .bn-block-outer::before,
+.react-renderer.node-column ~ .bn-block-group::before,
+.react-renderer.node-column ~ .bn-block-group .bn-block-outer::before,
+.react-renderer.node-column_list ~ .bn-block-group::after,
+.react-renderer.node-column_list ~ .bn-block-group .bn-block-outer::after,
+.react-renderer.node-column ~ .bn-block-group::after,
+.react-renderer.node-column ~ .bn-block-group .bn-block-outer::after {
+  display: none !important;
+  content: none !important;
+  border: none !important;
+  border-left: none !important;
+}
+
+/* Ensure CodeMirror text cursor inside Code Editor remains visible */
+.cm-cursor {
+  border-left: 1.2px solid currentColor !important;
+}
+
+.dark-theme .cm-cursor {
+  border-left: 1.2px solid #FFFFFF !important;
+}
+
+/* 3. Each column outer block: Remove dotted border, clean spacing */
+.react-renderer.node-column_list + .bn-block-group > .bn-block-outer,
+.react-renderer.node-column_list ~ .bn-block-group > .bn-block-outer,
+.react-renderer.node-column_list + .bn-block-group > [data-node-type="blockOuter"],
+.react-renderer.node-column_list ~ .bn-block-group > [data-node-type="blockOuter"],
+.bn-block-container:has(> .react-renderer.node-column_list) > .bn-block-group > .bn-block-outer {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+/* Clean SINGLE vertical divider line between column sections */
+.react-renderer.node-column_list ~ .bn-block-group > .bn-block-outer + .bn-block-outer,
+.react-renderer.node-column_list + .bn-block-group > .bn-block-outer + .bn-block-outer,
+.bn-block-container:has(> .react-renderer.node-column_list) > .bn-block-group > .bn-block-outer + .bn-block-outer {
+  border-left: 1px solid rgba(229, 231, 235, 0.8) !important;
+  padding-left: 20px !important;
+}
+
+.dark-theme .react-renderer.node-column_list ~ .bn-block-group > .bn-block-outer + .bn-block-outer,
+.dark-theme .react-renderer.node-column_list + .bn-block-group > .bn-block-outer + .bn-block-outer,
+.dark-theme .bn-block-container:has(> .react-renderer.node-column_list) > .bn-block-group > .bn-block-outer + .bn-block-outer {
+  border-left: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Flex ratios for column widths */
+.react-renderer.node-column_list ~ .bn-block-group > .bn-block-outer:has([data-width="1"]) {
+  flex: 1 1 0% !important;
+}
+.react-renderer.node-column_list ~ .bn-block-group > .bn-block-outer:has([data-width="2"]) {
+  flex: 2 2 0% !important;
+}
+.react-renderer.node-column_list ~ .bn-block-group > .bn-block-outer:has([data-width="3"]) {
+  flex: 3 3 0% !important;
+}
+
+/* 4. Inside EACH column, child blocks MUST stack VERTICALLY, no left indent line */
+.react-renderer.node-column + .bn-block-group,
+.react-renderer.node-column ~ .bn-block-group,
+.bn-block-container:has(> .react-renderer.node-column) > .bn-block-group {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  gap: 4px !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  border-left: none !important;
+  min-height: 80px !important;
+  padding-bottom: 12px !important;
+}
+
+/* Responsive adjustment for small screens (<640px) */
+@media (max-width: 640px) {
+  .react-renderer.node-column_list + .bn-block-group,
+  .react-renderer.node-column_list ~ .bn-block-group {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .react-renderer.node-column_list ~ .bn-block-group > .bn-block-outer + .bn-block-outer {
+    border-left: none !important;
+    border-top: 1px solid rgba(229, 231, 235, 0.8) !important;
+    padding-left: 0 !important;
+    padding-top: 16px !important;
+  }
+}
+
+
+
+
+
+
+
+
 
