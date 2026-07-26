@@ -61,13 +61,44 @@ function CustomCodeBlockComponent({ block, editor }) {
     });
   };
 
-  const handleCopyCode = () => {
-    const codeText = block.props?.code || "";
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(codeText).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      });
+  const handleCopyCode = async () => {
+    const codeText = editorRef.current
+      ? editorRef.current.state.doc.toString()
+      : (block.props?.code || "");
+
+    let copySuccess = false;
+
+    // Strategy 1: Try navigator.clipboard if available
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(codeText);
+        copySuccess = true;
+      } catch (err) {
+        console.warn("navigator.clipboard failed, attempting fallback copy method:", err);
+      }
+    }
+
+    // Strategy 2: Fallback via temporary hidden textarea (reliable in Electron/iFrames)
+    if (!copySuccess) {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = codeText;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-999999px';
+        textarea.style.top = '-999999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        copySuccess = document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch (err) {
+        console.warn("document.execCommand fallback copy failed:", err);
+      }
+    }
+
+    if (copySuccess) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     }
   };
 
@@ -186,7 +217,7 @@ function CustomCodeBlockComponent({ block, editor }) {
         margin: '12px 0',
         fontFamily: 'inherit',
         width: 'fit-content',
-        minWidth: '40%',
+        minWidth: '50%',
         maxWidth: '100%',
         boxSizing: 'border-box',
         backgroundColor: theme === 'dark' ? '#282a36' : '#ffffff',
@@ -222,13 +253,13 @@ function CustomCodeBlockComponent({ block, editor }) {
           <span>Code</span>
         </div>
 
-        {/* Right Side: Header Action Buttons */}
+        {/* Right Side: Header Action Buttons (Icon Only) */}
         <div
           className="code-block-header-actions"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '4px',
           }}
         >
           {/* Text Wrap Option */}
@@ -238,8 +269,8 @@ function CustomCodeBlockComponent({ block, editor }) {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
-              padding: '3px 8px',
+              justifyContent: 'center',
+              padding: '3px 6px',
               borderRadius: '4px',
               border: theme === 'dark' ? '1px solid #44475a' : '1px solid #D1D5DB',
               background: isWordWrap
@@ -249,36 +280,32 @@ function CustomCodeBlockComponent({ block, editor }) {
                 ? (theme === 'dark' ? '#8BE9FD' : '#2563EB')
                 : (theme === 'dark' ? '#F8F8F2' : '#374151'),
               cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: '500',
+              fontSize: '12px',
               transition: 'all 0.15s ease',
             }}
           >
-            <i className="ri-text-wrap" style={{ fontSize: '13px' }}></i>
-            <span>{isWordWrap ? "Wrap" : "Unwrap"}</span>
+            <i className="ri-text-wrap" style={{ fontSize: '14px' }}></i>
           </button>
 
           {/* Copy Code Button */}
           <button
             onClick={handleCopyCode}
-            title="Copy Code"
+            title={copied ? "Copied!" : "Copy Code"}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
-              padding: '3px 8px',
+              justifyContent: 'center',
+              padding: '3px 6px',
               borderRadius: '4px',
               border: theme === 'dark' ? '1px solid #44475a' : '1px solid #D1D5DB',
               background: theme === 'dark' ? '#21222c' : '#FFFFFF',
               color: copied ? '#10B981' : (theme === 'dark' ? '#F8F8F2' : '#374151'),
               cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: '500',
+              fontSize: '12px',
               transition: 'all 0.15s ease',
             }}
           >
-            <i className={copied ? "ri-check-line" : "ri-file-copy-line"} style={{ fontSize: '13px' }}></i>
-            <span>{copied ? "Copied!" : "Copy"}</span>
+            <i className={copied ? "ri-check-line" : "ri-file-copy-line"} style={{ fontSize: '14px' }}></i>
           </button>
         </div>
       </div>

@@ -431,7 +431,7 @@ function App() {
       },
       {
         type: "paragraph",
-        content: [{ type: "text", text: "Type '/' to browse commands, formatting options, and block types.", styles: {} }]
+        content: [{ type: "text", text: "Type '/' to browse commands, formatting options, and block types. It supports Markdown shortcuts directly—for example, type ``` + space for a Code Block or ## + space for a Heading.", styles: {} }]
       },
       {
         type: "paragraph",
