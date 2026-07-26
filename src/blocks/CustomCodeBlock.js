@@ -37,6 +37,9 @@ function useThemeDetector() {
 function CustomCodeBlockComponent({ block, editor }) {
   const theme = useThemeDetector();
   const editorRef = useRef(null);
+  const [copied, setCopied] = useState(false);
+
+  const isWordWrap = block.props?.wordWrap !== "false";
 
   const handleCodeChange = useCallback((newValue) => {
     if (newValue !== block.props.code) {
@@ -48,6 +51,25 @@ function CustomCodeBlockComponent({ block, editor }) {
       });
     }
   }, [block, editor]);
+
+  const toggleWordWrap = () => {
+    editor.updateBlock(block.id, {
+      props: {
+        ...block.props,
+        wordWrap: isWordWrap ? "false" : "true"
+      }
+    });
+  };
+
+  const handleCopyCode = () => {
+    const codeText = block.props?.code || "";
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(codeText).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      });
+    }
+  };
 
   const handleCreateEditor = (view) => {
     editorRef.current = view;
@@ -68,33 +90,77 @@ function CustomCodeBlockComponent({ block, editor }) {
     const { state } = view;
     const cursor = state.selection.main.head;
     const line = state.doc.lineAt(cursor);
+    const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+    if (isCmdOrCtrl && e.key === "Enter") {
+      e.preventDefault();
+      const newBlocks = editor.insertBlocks(
+        [{ type: "paragraph", content: [] }],
+        block.id,
+        "after"
+      );
+      if (newBlocks && newBlocks.length > 0) {
+        editor.setTextCursorPosition(newBlocks[0].id, "start");
+      }
+      return;
+    }
 
     if (e.key === "ArrowUp") {
       if (line.number === 1 && cursor === line.from) {
-        const documentBlocks = editor.document;
-        const index = documentBlocks.findIndex(b => b.id === block.id);
-        if (index > 0) {
+        let prevBlock = null;
+        try {
+          prevBlock = editor.getPrevBlock(block.id);
+        } catch (_) {}
+
+        if (!prevBlock) {
+          const documentBlocks = editor.document;
+          const index = documentBlocks.findIndex(b => b.id === block.id);
+          if (index > 0) prevBlock = documentBlocks[index - 1];
+        }
+
+        if (prevBlock) {
           e.preventDefault();
-          const prevBlock = documentBlocks[index - 1];
           editor.setTextCursorPosition(prevBlock.id, "end");
         }
       }
     } else if (e.key === "ArrowDown") {
       const totalLines = state.doc.lines;
       if (line.number === totalLines && cursor === line.to) {
-        const documentBlocks = editor.document;
-        const index = documentBlocks.findIndex(b => b.id === block.id);
-        if (index < documentBlocks.length - 1) {
+        let nextBlock = null;
+        try {
+          nextBlock = editor.getNextBlock(block.id);
+        } catch (_) {}
+
+        if (!nextBlock) {
+          const documentBlocks = editor.document;
+          const index = documentBlocks.findIndex(b => b.id === block.id);
+          if (index !== -1 && index < documentBlocks.length - 1) nextBlock = documentBlocks[index + 1];
+        }
+
+        if (nextBlock) {
           e.preventDefault();
-          const nextBlock = documentBlocks[index + 1];
           editor.setTextCursorPosition(nextBlock.id, "start");
+        } else {
+          e.preventDefault();
+          const newBlocks = editor.insertBlocks(
+            [{ type: "paragraph", content: [] }],
+            block.id,
+            "after"
+          );
+          if (newBlocks && newBlocks.length > 0) {
+            editor.setTextCursorPosition(newBlocks[0].id, "start");
+          }
         }
       }
     }
   };
 
   const currentLanguage = block.props.language || "javascript";
-  const extensions = [javascript({ jsx: true }), EditorView.lineWrapping];
+  const extensions = [javascript({ jsx: true })];
+
+  if (isWordWrap) {
+    extensions.push(EditorView.lineWrapping);
+  }
 
   if (currentLanguage !== "javascript" && currentLanguage !== "js") {
     try {
@@ -113,15 +179,110 @@ function CustomCodeBlockComponent({ block, editor }) {
     <div
       className="custom-code-block-wrapper-cm"
       style={{
+        position: 'relative',
         border: theme === 'dark' ? '1px solid #343746' : '1px solid #E5E7EB',
-        borderRadius: '4px',
+        borderRadius: '6px',
         overflow: 'hidden',
         margin: '12px 0',
         fontFamily: 'inherit',
-        width: '100%',
+        width: 'fit-content',
+        minWidth: '40%',
+        maxWidth: '100%',
         boxSizing: 'border-box',
+        backgroundColor: theme === 'dark' ? '#282a36' : '#ffffff',
       }}
     >
+      {/* Code Block Header */}
+      <div
+        className="code-block-header"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 12px',
+          backgroundColor: theme === 'dark' ? '#21222c' : '#F3F4F6',
+          borderBottom: theme === 'dark' ? '1px solid #343746' : '1px solid #E5E7EB',
+          userSelect: 'none',
+        }}
+      >
+        {/* Left Side: Code Icon & Label (NO language selector option) */}
+        <div
+          className="code-block-header-left"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            color: theme === 'dark' ? '#BD93F9' : '#4B5563',
+            fontSize: '12px',
+            fontWeight: '600',
+            letterSpacing: '0.02em',
+          }}
+        >
+          <i className="ri-code-s-slash-line" style={{ fontSize: '14px' }}></i>
+          <span>Code</span>
+        </div>
+
+        {/* Right Side: Header Action Buttons */}
+        <div
+          className="code-block-header-actions"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          {/* Text Wrap Option */}
+          <button
+            onClick={toggleWordWrap}
+            title={isWordWrap ? "Disable Text Wrap" : "Enable Text Wrap"}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              border: theme === 'dark' ? '1px solid #44475a' : '1px solid #D1D5DB',
+              background: isWordWrap
+                ? (theme === 'dark' ? '#383a59' : '#EFF6FF')
+                : (theme === 'dark' ? '#21222c' : '#FFFFFF'),
+              color: isWordWrap
+                ? (theme === 'dark' ? '#8BE9FD' : '#2563EB')
+                : (theme === 'dark' ? '#F8F8F2' : '#374151'),
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: '500',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <i className="ri-text-wrap" style={{ fontSize: '13px' }}></i>
+            <span>{isWordWrap ? "Wrap" : "Unwrap"}</span>
+          </button>
+
+          {/* Copy Code Button */}
+          <button
+            onClick={handleCopyCode}
+            title="Copy Code"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              border: theme === 'dark' ? '1px solid #44475a' : '1px solid #D1D5DB',
+              background: theme === 'dark' ? '#21222c' : '#FFFFFF',
+              color: copied ? '#10B981' : (theme === 'dark' ? '#F8F8F2' : '#374151'),
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: '500',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <i className={copied ? "ri-check-line" : "ri-file-copy-line"} style={{ fontSize: '13px' }}></i>
+            <span>{copied ? "Copied!" : "Copy"}</span>
+          </button>
+        </div>
+      </div>
+
       {/* CodeMirror instance */}
       <div onKeyDown={handleKeyDown}>
         <CodeMirror
@@ -143,6 +304,7 @@ export const CustomCodeBlock = createReactBlockSpec(
     propSchema: {
       language: { default: "javascript" },
       code: { default: "" },
+      wordWrap: { default: "true" },
     },
     content: "none",
   },
@@ -156,12 +318,9 @@ export const CustomCodeBlock = createReactBlockSpec(
         el.getAttribute?.("data-content-type") === "codeBlock" ||
         (el.classList && el.classList.contains("bn-code-block"))
       ) {
-        // 1. Try to get code from data-code attribute (used by BlockNote/custom serializers)
         let codeText = el.getAttribute?.("data-code");
 
-        // 2. If not present, extract text preserving line breaks
         if (codeText === null || codeText === undefined) {
-          // Manual fallback walker to preserve line breaks from <br> and divs in detached fragments
           let text = "";
           const walk = (node) => {
             if (node.nodeType === 3) {
@@ -195,9 +354,12 @@ export const CustomCodeBlock = createReactBlockSpec(
         }
 
         const lang = el.getAttribute?.("data-language") || el.getAttribute?.("language") || "javascript";
+        const wordWrap = el.getAttribute?.("data-word-wrap") || "true";
+
         return {
           code: codeText,
           language: lang,
+          wordWrap,
         };
       }
       return undefined;
@@ -205,8 +367,9 @@ export const CustomCodeBlock = createReactBlockSpec(
     toExternalHTML: ({ block }) => {
       const codeText = block.props.code || "";
       const lang = block.props.language || "javascript";
+      const wordWrap = block.props.wordWrap || "true";
       return (
-        <pre data-content-type="codeBlock" data-language={lang} data-code={codeText}>
+        <pre data-content-type="codeBlock" data-language={lang} data-word-wrap={wordWrap} data-code={codeText}>
           <code>{codeText}</code>
         </pre>
       );

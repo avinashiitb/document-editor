@@ -597,10 +597,17 @@ function App() {
   useEffect(() => {
     const handleEnterKey = (e) => {
       if (e.key === 'Enter' && !e.shiftKey && editor) {
+        const target = e.target;
         const cursor = editor.getTextCursorPosition();
-        if (!cursor || !cursor.block) return;
+        const currentBlock = cursor?.block;
 
-        const currentBlock = cursor.block;
+        // Skip interception if focus or cursor is inside a code block -- let CodeMirror create new lines
+        const isInCode = currentBlock?.type === 'codeBlock' ||
+          (target && typeof target.closest === 'function' && target.closest('pre, code, textarea, .cm-editor, .bn-code-block, [data-content-type="codeBlock"]'));
+
+        if (isInCode) return;
+
+        if (!cursor || !currentBlock) return;
 
         // 1. Direct hit on column or column_list container node
         if (currentBlock.type === 'column' || currentBlock.type === 'column_list') {
@@ -630,7 +637,7 @@ function App() {
             currentBlock.content.length === 0 ||
             (currentBlock.content.length === 1 && currentBlock.content[0].type === "text" && currentBlock.content[0].text === "");
 
-          // If current block is empty or is a non-paragraph block (like heading, codeBlock, addDoc, quote, etc.)
+          // If current block is empty or is a non-paragraph block (except codeBlock)
           if (isBlockEmpty || currentBlock.type !== 'paragraph') {
             e.preventDefault();
             e.stopPropagation();
@@ -655,10 +662,17 @@ function App() {
   useEffect(() => {
     const handleBackspaceKey = (e) => {
       if (e.key === 'Backspace' && editor) {
+        const target = e.target;
         const cursor = editor.getTextCursorPosition();
-        if (!cursor || !cursor.block) return;
+        const currentBlock = cursor?.block;
 
-        const currentBlock = cursor.block;
+        // Skip interception if focus or cursor is inside a code block -- let CodeMirror handle backspace
+        const isInCode = currentBlock?.type === 'codeBlock' ||
+          (target && typeof target.closest === 'function' && target.closest('pre, code, textarea, .cm-editor, .bn-code-block, [data-content-type="codeBlock"]'));
+
+        if (isInCode) return;
+
+        if (!cursor || !currentBlock) return;
 
         // 1. Direct selection on column or column_list node
         if (currentBlock.type === 'column' || currentBlock.type === 'column_list') {
@@ -689,7 +703,7 @@ function App() {
               e.preventDefault();
               e.stopPropagation();
 
-              // If it's a non-paragraph block (like Heading, CodeBlock, etc.), convert it to paragraph
+              // If it's a non-paragraph block (like Heading, etc.), convert it to paragraph
               if (currentBlock.type !== 'paragraph') {
                 editor.updateBlock(currentBlock.id, {
                   type: 'paragraph',

@@ -575,6 +575,17 @@ code {
     position: relative;
 }
 
+/* Custom min-width (80%) for Code Blocks when placed inside a Column */
+.react-renderer.node-column + .bn-block-group .custom-code-block-wrapper-cm,
+.react-renderer.node-column ~ .bn-block-group .custom-code-block-wrapper-cm,
+.bn-block-container:has(> .react-renderer.node-column) .custom-code-block-wrapper-cm,
+[data-content-type="column"] ~ .bn-block-group .custom-code-block-wrapper-cm,
+[data-block-type="column"] ~ .bn-block-group .custom-code-block-wrapper-cm,
+.custom-column-block ~ .bn-block-group .custom-code-block-wrapper-cm,
+.custom-column-block .custom-code-block-wrapper-cm {
+    min-width: 80% !important;
+}
+
 /* Ensure inner pre elements within BlockNote codeBlocks are transparent and borderless */
 .bn-block-content[data-content-type=codeBlock] pre {
     background-color: transparent !important;
