@@ -593,6 +593,134 @@ function App() {
     };
   }, []);
 
+  // Handle Enter key inside column blocks to ensure it ALWAYS creates a new paragraph block inside the column and NEVER creates a new column
+  useEffect(() => {
+    const handleEnterKey = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && editor) {
+        const cursor = editor.getTextCursorPosition();
+        if (!cursor || !cursor.block) return;
+
+        const currentBlock = cursor.block;
+
+        // 1. Direct hit on column or column_list container node
+        if (currentBlock.type === 'column' || currentBlock.type === 'column_list') {
+          e.preventDefault();
+          e.stopPropagation();
+          const targetId = currentBlock.type === 'column' ? currentBlock.id : currentBlock.children?.[0]?.id || currentBlock.id;
+          const newBlocks = editor.insertBlocks(
+            [{ type: 'paragraph', content: [] }],
+            targetId,
+            currentBlock.type === 'column' ? 'nested' : 'after'
+          );
+          if (newBlocks && newBlocks.length > 0) {
+            editor.setTextCursorPosition(newBlocks[0].id, 'start');
+          }
+          return;
+        }
+
+        // 2. Check if currentBlock is inside a column
+        let parentBlock = null;
+        try {
+          parentBlock = editor.getParentBlock(currentBlock.id);
+        } catch (_) {}
+
+        if (parentBlock && parentBlock.type === 'column') {
+          const isBlockEmpty =
+            !currentBlock.content ||
+            currentBlock.content.length === 0 ||
+            (currentBlock.content.length === 1 && currentBlock.content[0].type === "text" && currentBlock.content[0].text === "");
+
+          // If current block is empty or is a non-paragraph block (like heading, codeBlock, addDoc, quote, etc.)
+          if (isBlockEmpty || currentBlock.type !== 'paragraph') {
+            e.preventDefault();
+            e.stopPropagation();
+            const newBlocks = editor.insertBlocks(
+              [{ type: 'paragraph', content: [] }],
+              currentBlock.id,
+              'after'
+            );
+            if (newBlocks && newBlocks.length > 0) {
+              editor.setTextCursorPosition(newBlocks[0].id, 'start');
+            }
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEnterKey, true);
+    return () => document.removeEventListener('keydown', handleEnterKey, true);
+  }, [editor]);
+
+  // Handle Backspace key inside column blocks to ensure it NEVER deletes columns or merges across column boundaries
+  useEffect(() => {
+    const handleBackspaceKey = (e) => {
+      if (e.key === 'Backspace' && editor) {
+        const cursor = editor.getTextCursorPosition();
+        if (!cursor || !cursor.block) return;
+
+        const currentBlock = cursor.block;
+
+        // 1. Direct selection on column or column_list node
+        if (currentBlock.type === 'column' || currentBlock.type === 'column_list') {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
+        // 2. Check if currentBlock is inside a column
+        let parentBlock = null;
+        try {
+          parentBlock = editor.getParentBlock(currentBlock.id);
+        } catch (_) {}
+
+        if (parentBlock && parentBlock.type === 'column') {
+          const children = parentBlock.children || [];
+          const isFirstChild = children.length > 0 && children[0].id === currentBlock.id;
+          const isBlockEmpty =
+            !currentBlock.content ||
+            currentBlock.content.length === 0 ||
+            (currentBlock.content.length === 1 && currentBlock.content[0].type === "text" && currentBlock.content[0].text === "");
+
+          const isAtStart = cursor.textCursorPosition === 0 || isBlockEmpty;
+
+          // If current block is the TOP / FIRST element in the column:
+          if (isFirstChild) {
+            if (isAtStart) {
+              e.preventDefault();
+              e.stopPropagation();
+
+              // If it's a non-paragraph block (like Heading, CodeBlock, etc.), convert it to paragraph
+              if (currentBlock.type !== 'paragraph') {
+                editor.updateBlock(currentBlock.id, {
+                  type: 'paragraph',
+                  props: {},
+                  content: []
+                });
+              }
+              // If it's already a paragraph and empty, do nothing (keep empty text block in column)
+              return;
+            }
+          } else if (isBlockEmpty) {
+            // If it's NOT the first child, but is an empty block, remove it and focus previous block IN SAME COLUMN
+            e.preventDefault();
+            e.stopPropagation();
+            const childIdx = children.findIndex(c => c.id === currentBlock.id);
+            const prevSibling = childIdx > 0 ? children[childIdx - 1] : null;
+
+            editor.removeBlocks([currentBlock.id]);
+            if (prevSibling) {
+              editor.setTextCursorPosition(prevSibling.id, 'end');
+            }
+            return;
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleBackspaceKey, true);
+    return () => document.removeEventListener('keydown', handleBackspaceKey, true);
+  }, [editor]);
+
   // Keyboard shortcut Ctrl/Cmd + S to trigger instant save
   useEffect(() => {
     const handleKeyDown = (e) => {

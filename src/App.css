@@ -33,6 +33,10 @@
   --accent-faint: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
+.bn-side-menu {
+  margin-right: -2px !important;
+}
+
 .export-icon {
   color: var(--accent) !important;
 }
