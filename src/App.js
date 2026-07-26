@@ -574,6 +574,34 @@ function App() {
   const handleEditorChange = useCallback(() => {
     if (!editor) return;
 
+    // Ensure every column has a trailing text/paragraph block below non-paragraph elements (like codeBlock)
+    const traverseColumns = (blocks) => {
+      for (const block of blocks) {
+        if (block.type === 'column') {
+          const children = block.children || [];
+          if (children.length > 0) {
+            const lastChild = children[children.length - 1];
+            if (lastChild.type !== 'paragraph') {
+              try {
+                editor.insertBlocks(
+                  [{ type: 'paragraph', content: [] }],
+                  lastChild.id,
+                  'after'
+                );
+              } catch (_) {}
+            }
+          }
+        }
+        if (block.children && block.children.length > 0) {
+          traverseColumns(block.children);
+        }
+      }
+    };
+
+    try {
+      traverseColumns(editor.document);
+    } catch (_) {}
+
     setSaveStatus('saving');
 
     if (saveTimeoutRef.current) {
