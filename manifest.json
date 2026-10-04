@@ -8,5 +8,495 @@
   "entry": "/build/index.html",
   "icon": "build/Icons.svg",
   "iconDark": "build/Icons-light.svg",
-  "color": "green"
+  "color": "green",
+  "validator": "validator.js",
+  "aiContext": {
+    "documentContext": "DevScribe Document Editor (BlockNote) Specification:\nYou are generating structured documentation for DevScribe Document Editor.\n\nsupportedBlocks:\n  - heading: Titles, section headings, and subsections. (props: { \"level\": 1 | 2 | 3, \"backgroundColor\": \"default\", \"textColor\": \"default\", \"textAlignment\": \"left\" })\n  - paragraph: Normal explanatory, descriptive, or narrative text. (props: { \"backgroundColor\": \"default\", \"textColor\": \"default\", \"textAlignment\": \"left\" })\n  - bulletListItem: Unordered features, characteristics, options, or key points. (props: { \"backgroundColor\": \"default\", \"textColor\": \"default\", \"textAlignment\": \"left\" })\n  - numberedListItem: Ordered steps, procedures, workflows, or sequences. (props: { \"backgroundColor\": \"default\", \"textColor\": \"default\", \"textAlignment\": \"left\" })\n  - checkListItem: Actionable tasks, TODOs, requirements, or completion tracking. (props: { \"backgroundColor\": \"default\", \"textColor\": \"default\", \"textAlignment\": \"left\" })\n  - quote: Important notes, warnings, callouts, recommendations, or quotations. (props: { \"backgroundColor\": \"default\", \"textColor\": \"default\", \"textAlignment\": \"left\" })\n  - codeBlock: Source code, commands, configuration, SQL, JSON, scripts, or executable examples. (props: { \"language\": \"javascript\" | \"python\" | \"sql\" | \"json\" | \"bash\" })\n  - divider: Visual separation between major sections. (props: {})\n\nOUTPUT FORMAT RULES:\n1. Output MUST be a valid JSON array of block objects starting with '[' and ending with ']'.\n2. Do NOT include any conversational preamble, intro text, or explanation outside the JSON array.\n3. Do NOT wrap the JSON array in markdown code block fences (do NOT use ```json or ```).\n4. Every block MUST have a valid unique UUID-v4 id string.\n5. Every block object MUST follow this exact structure:\n   {\n     \"id\": \"UUID-v4-string\",\n     \"type\": \"heading\" | \"paragraph\" | \"bulletListItem\" | \"numberedListItem\" | \"checkListItem\" | \"quote\" | \"codeBlock\" | \"divider\",\n     \"props\": { \"backgroundColor\": \"default\", \"textColor\": \"default\", \"textAlignment\": \"left\" },\n     \"content\": [ { \"type\": \"text\", \"text\": \"actual text content\", \"styles\": {} } ],\n     \"children\": []\n   }\n6. Produce complete, detailed, production-ready documentation matching the requested title and topic.",
+    "fileContext": {
+      "fileType": "document-editor",
+      "name": "DevScribe Document Editor",
+      "description": "- 'document-editor' (DevScribe Document Editor): Technical design specifications, READMEs, notes, structured documentation.",
+      "product": {
+        "name": "DevScribe Document Editor",
+      "type": "Documentation and technical document editor",
+      "description": "DevScribe Document Editor creates, edits, structures, and organizes technical documentation and can reference artifacts created by other DevScribe capabilities."
+    },
+    "naturalLanguageHints": [
+      "document",
+      "documentation",
+      "docs",
+      "specification",
+      "technical specification",
+      "design document",
+      "readme",
+      "architecture document"
+    ],
+    "purpose": {
+      "description": "Create technical documentation and project documents from user requirements, while connecting the documentation to related files and artifacts created by other DevScribe capabilities.",
+      "primaryResponsibilities": [
+        "Create technical documentation.",
+        "Create HLD and LLD documents.",
+        "Create architecture and design documents.",
+        "Create API documentation.",
+        "Create database documentation.",
+        "Create setup and implementation documentation.",
+        "Organize documentation into logical sections.",
+        "Reference files and documents created by other DevScribe capabilities.",
+        "Embed or link related project artifacts when appropriate."
+      ]
+    },
+
+    "whenToUse": [
+      "The user explicitly asks to create documentation.",
+      "The user asks for an HLD or high-level design.",
+      "The user asks for an LLD or low-level design.",
+      "The user asks to document an architecture or system.",
+      "The user asks to create API, database, deployment, setup, or technical documentation.",
+      "The user asks to document files or artifacts created as part of a larger development task.",
+      "The user requests a complete technical solution that requires documentation.",
+      "The user asks to create project documentation together with implementation artifacts."
+    ],
+
+    "roleInLargerTasks": {
+      "description": "The Document Editor is responsible for producing documentation artifacts and connecting them to implementation artifacts created by other DevScribe capabilities.",
+
+      "responsibilities": [
+        "Understand the overall user requirement before creating documentation.",
+        "Determine which documentation artifacts are required.",
+        "Create documentation artifacts requested by the user.",
+        "Use artifacts produced by other DevScribe capabilities as references when relevant.",
+        "Determine whether related artifacts should be embedded or linked.",
+        "Create documentation only when it adds value or is requested.",
+        "Keep documentation consistent with the actual project artifacts.",
+        "Do not invent files, documents, IDs, URLs, APIs, schemas, or implementation details."
+      ]
+    },
+
+    "documentationTypes": {
+      "architecture": [
+        "HLD",
+        "LLD",
+        "System Architecture",
+        "Component Architecture",
+        "Deployment Architecture",
+        "Data Flow",
+        "Sequence Documentation"
+      ],
+
+      "technical": [
+        "API Documentation",
+        "Database Documentation",
+        "Integration Documentation",
+        "Configuration Documentation",
+        "Setup Documentation",
+        "Deployment Documentation",
+        "Development Guide",
+        "Troubleshooting Guide"
+      ],
+
+      "project": [
+        "README",
+        "Technical Specification",
+        "Implementation Plan",
+        "Requirements Document",
+        "Design Document",
+        "Project Documentation"
+      ]
+    },
+
+    "artifactPlanning": {
+      "description": "When the user requests a complete technical solution, identify the documentation artifacts required and the external artifacts that should be referenced by those documents.",
+
+      "rules": [
+        "First understand the complete user requirement.",
+        "Identify the documents explicitly requested by the user.",
+        "Identify supporting technical artifacts required to explain the system.",
+        "Use artifacts created by other DevScribe capabilities when available.",
+        "Do not create duplicate artifacts.",
+        "Create only documentation required by the user or necessary to explain the requested system.",
+        "Maintain consistency between documentation and referenced artifacts."
+      ],
+
+      "example": {
+        "userRequest": "I want to build a search engine using Elasticsearch for employees. Create HLD and LLD documents by adding all the required files along with a setup file.",
+
+        "documentationArtifacts": [
+          {
+            "name": "HLD",
+            "purpose": "Describe the overall employee search architecture, components, data flow, and technology choices."
+          },
+          {
+            "name": "LLD",
+            "purpose": "Describe detailed implementation, Elasticsearch design, APIs, data structures, and component interactions."
+          }
+        ],
+
+        "externalArtifacts": [
+          {
+            "capability": "Data Bridge",
+            "artifacts": [
+              "Elasticsearch index mapping",
+              "Elasticsearch settings",
+              "Search queries",
+              "Elasticsearch setup"
+            ]
+          },
+          {
+            "capability": "Code Editor",
+            "artifacts": [
+              "Application implementation",
+              "Search service",
+              "API implementation"
+            ]
+          }
+        ],
+
+        "relationships": [
+          {
+            "document": "HLD",
+            "artifact": "LLD",
+            "relationship": "link",
+            "reason": "The LLD is a separate detailed document."
+          },
+          {
+            "document": "LLD",
+            "artifact": "Elasticsearch index mapping",
+            "relationship": "embed",
+            "reason": "The mapping is directly relevant to the detailed Elasticsearch design."
+          },
+          {
+            "document": "LLD",
+            "artifact": "Search queries",
+            "relationship": "embed",
+            "reason": "Search queries help explain the search implementation."
+          },
+          {
+            "document": "LLD",
+            "artifact": "Application implementation",
+            "relationship": "link",
+            "reason": "Implementation code is maintained as a separate artifact."
+          },
+          {
+            "document": "LLD",
+            "artifact": "Elasticsearch setup",
+            "relationship": "link",
+            "reason": "Setup is independently executable and maintained."
+          }
+        ]
+      }
+    },
+
+    "artifactIntegration": {
+      "description": "Documents can reference files and documents created or supplied by other DevScribe capabilities.",
+
+      "supportedRelationshipTypes": [
+        "embed",
+        "link"
+      ],
+
+      "embed": {
+        "description": "Embed an artifact when its content should be directly visible or represented within the document.",
+
+        "preferredFor": [
+          "Small configuration files",
+          "Database schemas",
+          "Elasticsearch mappings",
+          "Search queries",
+          "Important API examples",
+          "Architecture artifacts",
+          "Short code examples",
+          "Design artifacts that readers need to understand the document"
+        ]
+      },
+
+      "link": {
+        "description": "Link an artifact when it should remain an independent file or document but should be accessible from the current document.",
+
+        "preferredFor": [
+          "Large implementation files",
+          "Standalone source code",
+          "Executable setup files",
+          "Large configuration files",
+          "Documents maintained independently",
+          "Artifacts shared by multiple documents"
+        ]
+      },
+
+      "decisionRules": [
+        "Prefer embedding when the artifact is important to understanding the current section and is reasonably small.",
+        "Prefer linking when the artifact is large, executable, independently maintained, or reusable elsewhere.",
+        "A document may link or embed artifacts created by any compatible DevScribe capability.",
+        "Do not duplicate the full content of a linked artifact inside the document.",
+        "Do not invent artifact IDs, document IDs, file IDs, or URLs.",
+        "Use application-provided artifact metadata when creating references.",
+        "Never create a self-referencing document relationship."
+      ]
+    },
+
+    "capabilityCoordination": {
+      "description": "The Document Editor can consume artifacts produced by other DevScribe capabilities.",
+
+      "examples": [
+        {
+          "capability": "Data Bridge",
+          "useFor": [
+            "Database schema",
+            "SQL queries",
+            "MongoDB operations",
+            "Elasticsearch mappings",
+            "OpenSearch mappings",
+            "Search DSL",
+            "Database setup"
+          ]
+        },
+        {
+          "capability": "Protocol-X API Client",
+          "useFor": [
+            "API definitions",
+            "API requests",
+            "API examples",
+            "API testing artifacts"
+          ]
+        },
+        {
+          "capability": "Archflow",
+          "useFor": [
+            "Architecture diagrams",
+            "Flowcharts",
+            "Sequence diagrams",
+            "System diagrams"
+          ]
+        },
+        {
+          "capability": "Code Editor",
+          "useFor": [
+            "Source code",
+            "Implementation files",
+            "Configuration files",
+            "Code examples"
+          ]
+        }
+      ],
+
+      "rules": [
+        "Do not recreate an artifact when another capability is responsible for producing it.",
+        "Request or consume the artifact metadata returned by the responsible capability.",
+        "Use the artifact's actual ID, URL, title, and type when creating references.",
+        "Documentation should describe the actual artifacts rather than inventing their contents.",
+        "If a required artifact does not yet exist, indicate that it needs to be created by the appropriate capability."
+      ]
+    },
+
+    "fileCreation": {
+      "description": "The Document Editor can create documentation files when the user requests them or when they are required to complete the documentation task.",
+
+      "rules": [
+        "Create a new document when the requested documentation does not already exist.",
+        "Create separate HLD and LLD documents when both are requested.",
+        "Create supporting documentation only when required by the user's request or necessary for the solution.",
+        "Do not create unrelated documentation.",
+        "Do not duplicate existing documents.",
+        "Use returned document metadata when another document needs to link or embed the created document."
+      ]
+    },
+
+    "documentRelationships": {
+      "description": "Documents may reference other documents and project artifacts.",
+
+      "rules": [
+        "HLD may reference LLD.",
+        "LLD may reference implementation files.",
+        "LLD may reference database or search-engine artifacts.",
+        "API documentation may reference API definitions or implementation files.",
+        "Database documentation may reference database schema and query artifacts.",
+        "Setup documentation may reference setup files.",
+        "Use link or embed according to the artifactIntegration rules.",
+        "Never fabricate references."
+      ]
+    },
+
+    "contentGeneration": {
+      "rules": [
+        "Understand the user's requested system before generating documentation.",
+        "Structure content according to the document type.",
+        "For HLD, focus on system-level architecture, components, responsibilities, integrations, data flow, and major technology decisions.",
+        "For LLD, focus on detailed components, interfaces, data structures, APIs, database/search design, workflows, and implementation details.",
+        "Use actual project artifacts when available.",
+        "Keep documentation technically consistent with related files.",
+        "Do not invent implementation details that are not supported by the user's requirements or available artifacts."
+      ]
+    },
+
+    "documentStructureGuidance": {
+      "HLD": [
+        "Overview",
+        "Goals and Requirements",
+        "System Architecture",
+        "Major Components",
+        "Technology Stack",
+        "Data Flow",
+        "External Integrations",
+        "Security",
+        "Scalability",
+        "Availability",
+        "Deployment Overview",
+        "Key Design Decisions"
+      ],
+
+      "LLD": [
+        "Overview",
+        "Component Design",
+        "API Design",
+        "Data Model",
+        "Database/Search Design",
+        "Detailed Workflows",
+        "Request/Response Flow",
+        "Error Handling",
+        "Security Implementation",
+        "Configuration",
+        "Dependencies",
+        "Deployment Details",
+        "Implementation References"
+      ]
+    },
+
+    "embeddingInstructions": {
+      "description": "When creating documentation that depends on artifacts produced by another capability, provide explicit instructions for how those artifacts should be referenced.",
+
+      "rules": [
+        "Identify the artifact that should be referenced.",
+        "Identify whether it should be embedded or linked.",
+        "Provide the reason for the relationship.",
+        "Use actual artifact metadata returned by the application.",
+        "Do not generate fake IDs or URLs."
+      ],
+
+      "instructionFormat": {
+        "artifactId": "application-generated-artifact-id",
+        "relationship": "embed",
+        "location": "LLD > Search Architecture",
+        "reason": "Show the Elasticsearch mapping directly in the detailed search design."
+      }
+    },
+
+    "supportedBlocks": {
+      "heading": "Titles, section headings, and subsections.",
+      "paragraph": "Normal explanatory, descriptive, or narrative text.",
+      "bulletListItem": "Unordered features, characteristics, options, or key points.",
+      "numberedListItem": "Ordered steps, procedures, workflows, or sequences.",
+      "checkListItem": "Actionable tasks, TODOs, requirements, or completion tracking.",
+      "quote": "Important notes, warnings, callouts, recommendations, or quotations.",
+      "codeBlock": "Source code, commands, configuration, SQL, JSON, scripts, or executable examples.",
+      "divider": "Visual separation between major sections.",
+      "toggleListItem": "Expandable or collapsible list content.",
+      "toggleHeading": "Expandable or collapsible document section.",
+      "column_list": "Independent content that should appear side-by-side.",
+      "table": "Structured information where values naturally belong in rows and columns.",
+      "file": "A file artifact supplied or created by the application.",
+      "addDoc": "An existing DevScribe document supplied or created by the application."
+    },
+
+    "blockRules": {
+      "file": {
+        "description": "Reference a real file artifact.",
+
+        "format": {
+          "id": "UUID",
+          "type": "file",
+          "props": {
+            "backgroundColor": "default",
+            "name": "filename.ext",
+            "url": "application-provided-file-url"
+          },
+          "children": []
+        },
+
+        "constraints": [
+          "Only use when a real file artifact is supplied or created by the application.",
+          "Never invent the URL.",
+          "Never invent file metadata.",
+          "Use actual artifact metadata."
+        ]
+      },
+
+      "addDoc": {
+        "description": "Reference or embed an existing DevScribe document.",
+
+        "format": {
+          "id": "UUID",
+          "type": "addDoc",
+          "props": {
+            "docId": "application-provided-document-id",
+            "title": "Application-provided title",
+            "fileType": "application-provided file type",
+            "embedMode": "application-supported-mode"
+          },
+          "content": [],
+          "children": []
+        },
+
+        "constraints": [
+          "Only use when a real document ID is supplied by the application.",
+          "Never invent docId.",
+          "Never invent title.",
+          "Never invent fileType.",
+          "Never invent embedMode.",
+          "Never embed a document inside itself."
+        ]
+      }
+    },
+
+    "generationStrategy": {
+      "steps": [
+        "Understand the user's complete request.",
+        "Identify requested documentation.",
+        "Identify required supporting artifacts.",
+        "Determine which DevScribe capabilities are responsible for those artifacts.",
+        "Use available artifact metadata from those capabilities.",
+        "Create the documentation structure.",
+        "Determine which artifacts should be embedded and which should be linked.",
+        "Add references using real application-provided IDs and URLs.",
+        "Generate the document blocks.",
+        "Validate the complete document structure."
+      ]
+    },
+
+    "output": {
+      "format": "JSON array",
+      "onlyJson": true,
+      "mustBeComplete": true,
+      "mustBeParseable": true,
+      "noMarkdown": true,
+      "noCodeFences": true,
+      "noComments": true,
+      "noExplanationOutsideJson": true,
+      "noConversationalText": true,
+      "idRule": "Every block must contain a unique valid UUID in id.",
+      "schemaRule": "Use only block types, properties, values, and nesting structures defined in this context.",
+      "unsupportedRule": "If the requested format is unsupported, use the closest supported block. Never invent a new block type."
+    },
+
+    "finalValidation": {
+      "mustCheck": [
+        "Output is a valid JSON array.",
+        "Every block has a unique valid UUID.",
+        "Every block type exists in supportedBlocks.",
+        "Every property exists in the corresponding block schema.",
+        "No invented block types exist.",
+        "No invented properties exist.",
+        "Nested blocks are valid.",
+        "Inline formatting is valid.",
+        "No Markdown formatting exists inside text.",
+        "Code is stored in codeBlock.props.code.",
+        "Files use actual application-provided metadata.",
+        "Documents use actual application-provided document IDs.",
+        "No fabricated URLs exist.",
+        "No fabricated artifact IDs exist.",
+        "No self-referencing document exists.",
+        "Embedding/linking instructions refer only to real artifacts.",
+        "Documentation is consistent with available project artifacts."
+      ]
+    }
+  }
+}
 }
