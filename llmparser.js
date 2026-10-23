@@ -138,6 +138,15 @@ function blockToMarkdown(block, depth = 0) {
       break;
     }
 
+    case "addDoc": {
+      const fId = props.fileId || props.docId || "";
+      const title = props.title || "Embedded Document";
+      const fType = props.fileType || "document";
+      const mode = props.embedMode || "embed";
+      result = `[Embedded Artifact: "${title}" (fileType: "${fType}", id: "${fId}", mode: "${mode}")]`;
+      break;
+    }
+
     default: {
       result = inlineText;
       break;

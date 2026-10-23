@@ -208,14 +208,15 @@ function createDividerBlock({ props = {}, id, seenIds }) {
 }
 
 function createAddDocBlock({ fileId, title, fileType, embedMode = "embed", props = {}, id, seenIds }) {
+  const resolvedId = fileId || props.fileId || props.docId || "";
   return {
     id: getUniqueBlockId(id, seenIds),
     type: "addDoc",
     props: {
-      fileId: fileId || props.fileId,
-      docId: fileId || props.docId || props.fileId,
-      title: title || props.title,
-      fileType: fileType || props.fileType,
+      fileId: resolvedId,
+      docId: resolvedId,
+      title: title || props.title || "Embedded File",
+      fileType: fileType || props.fileType || "document-editor",
       embedMode: embedMode || props.embedMode || "embed",
       ...props,
     },
@@ -256,7 +257,15 @@ function transformBlock(block, seenIds = new Set()) {
     case "divider":
       return createDividerBlock({ props, id: block.id, seenIds });
     case "addDoc":
-      return createAddDocBlock({ fileId: props.fileId, title: props.title, fileType: props.fileType, embedMode: props.embedMode, props, id: block.id, seenIds });
+      return createAddDocBlock({
+        fileId: props.fileId || props.docId,
+        title: props.title,
+        fileType: props.fileType,
+        embedMode: props.embedMode || "embed",
+        props,
+        id: block.id,
+        seenIds
+      });
     default:
       return createParagraphBlock({ text: textContent, props, children, id: block.id, seenIds });
   }
@@ -306,6 +315,49 @@ function convertMarkdownToBlockNoteBlocks(markdownText, seenIds = new Set()) {
 
     const trimmed = line.trim();
     if (!trimmed) continue;
+
+    // Check for markdown embed directives: ::addDoc{...}, ::embed[...]{...}, [embed: <fileId>]
+    const addDocDirectiveMatch = trimmed.match(/^::addDoc\{(.*)\}$/i);
+    const embedDirectiveMatch = trimmed.match(/^::embed\[(.*?)\]\{(.*)\}$/i);
+    const shortcodeMatch = trimmed.match(/^\[embed(?:-doc)?:?\s*["']?([a-f0-9-]{36})["']?\s*(?:fileType=["']?(.*?)["']?)?\s*(?:title=["']?(.*?)["']?)?\]$/i);
+
+    if (addDocDirectiveMatch) {
+      const attrsStr = addDocDirectiveMatch[1];
+      const getAttr = (key) => {
+        const m = attrsStr.match(new RegExp(`${key}=["']([^"']*)["']|${key}=([^\\s}]+)`, "i"));
+        return m ? (m[1] !== undefined ? m[1] : m[2]) : "";
+      };
+      const fId = getAttr("fileId") || getAttr("docId") || getAttr("id");
+      const fTitle = getAttr("title") || "Embedded Document";
+      const fType = getAttr("fileType") || "document";
+      const eMode = getAttr("embedMode") || "embed";
+      if (fId) {
+        blocks.push(createAddDocBlock({ fileId: fId, title: fTitle, fileType: fType, embedMode: eMode, seenIds }));
+        continue;
+      }
+    } else if (embedDirectiveMatch) {
+      const fTitle = embedDirectiveMatch[1] || "Embedded Document";
+      const attrsStr = embedDirectiveMatch[2];
+      const getAttr = (key) => {
+        const m = attrsStr.match(new RegExp(`${key}=["']([^"']*)["']|${key}=([^\\s}]+)`, "i"));
+        return m ? (m[1] !== undefined ? m[1] : m[2]) : "";
+      };
+      const fId = getAttr("fileId") || getAttr("docId") || getAttr("id");
+      const fType = getAttr("fileType") || "document";
+      const eMode = getAttr("embedMode") || "embed";
+      if (fId) {
+        blocks.push(createAddDocBlock({ fileId: fId, title: fTitle, fileType: fType, embedMode: eMode, seenIds }));
+        continue;
+      }
+    } else if (shortcodeMatch) {
+      const fId = shortcodeMatch[1];
+      const fType = shortcodeMatch[2] || "document";
+      const fTitle = shortcodeMatch[3] || "Embedded Document";
+      if (fId) {
+        blocks.push(createAddDocBlock({ fileId: fId, title: fTitle, fileType: fType, embedMode: "embed", seenIds }));
+        continue;
+      }
+    }
 
     if (trimmed.startsWith("# ")) {
       blocks.push(createHeadingBlock({ text: trimmed.slice(2).trim(), level: 1, seenIds }));
